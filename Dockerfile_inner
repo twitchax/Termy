@@ -1,0 +1,15 @@
+ARG IMAGE
+
+FROM $IMAGE
+
+ARG ROOTPW
+ARG SHELLPATH
+
+RUN apt-get update && apt-get install -y python python-pip && pip install --upgrade pip
+
+RUN pip install butterfly
+RUN pip install butterfly[themes]
+
+RUN echo "root:$ROOTPW" | chpasswd
+
+ENTRYPOINT butterfly.server.py --host=* --port=80 --unsecure --login --shell=$SHELLPATH

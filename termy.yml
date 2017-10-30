@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: termy
+  name: termy
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: termy
+  template:
+    metadata:
+      labels:
+        run: termy
+    spec:
+      containers:
+      - image: twitchax/termy
+        name: termy
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+        volumeMounts:
+        - name: kubeconfig
+          readOnly: true
+          mountPath: /etc/kube
+        securityContext:
+          privileged: true
+      volumes:
+      - name: kubeconfig
+        secret:
+          secretName: kubeconfig
