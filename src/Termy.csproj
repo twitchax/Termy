@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AspNetCore.Proxy" Version="1.2.2" />
     <PackageReference Include="Docker.DotNet" Version="3.125.0" />
     <PackageReference Include="KubernetesClient" Version="0.2.0-beta" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.0" />
