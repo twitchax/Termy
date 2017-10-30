@@ -1,0 +1,19 @@
+sudo: required
+language: csharp
+mono: none
+dotnet: 2.0.0
+dist: trusty
+
+services:
+ - docker
+ 
+before_install:
+ - sudo apt-get update
+ - sudo apt-get install docker-ce
+
+script:
+ - docker build -t twitchax/termy:$TRAVIS_COMMIT .
+
+after_success:
+ - docker login -u $DOCKER_USER -p $DOCKER_PASS
+ - docker push twitchax/termy:$TRAVIS_COMMIT
