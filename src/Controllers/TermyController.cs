@@ -108,7 +108,7 @@ namespace Termy.Controllers
             }
 
             Console.WriteLine($" [{id}] Creating image ...");
-            var (_, buildError) = await RunDockerCommand(id, $"build -t {request.Tag} --build-arg IMAGE=\"{request.Image}\" --build-arg ROOTPW=\"{request.RootPassword}\" --build-arg SHELLPATH=\"{request.Shell}\" .");
+            var (_, buildError) = await RunDockerCommand(id, $"build -t {request.Tag} --build-arg IMAGE=\"{request.Image}\" --build-arg ROOTPW=\"{request.RootPassword}\" .");
             if(!string.IsNullOrWhiteSpace(buildError))
             {
                 Console.WriteLine($" [{id}] Failed: could not build docker image.");
@@ -122,7 +122,7 @@ namespace Termy.Controllers
             
             Console.WriteLine($" [{id}] Pushing k8s deployment ...");
             await RunKubeCommand(id, $"create namespace terminals");
-            await RunKubeCommand(id, $"run {request.Name} --image=\"{request.Tag}\" --port=80 --labels=\"name=\" --namespace={Helpers.KubeNamespace}");
+            await RunKubeCommand(id, $"run {request.Name} --image=\"{request.Tag}\" --port=80 --labels=\"name=\" --namespace={Helpers.KubeNamespace} --env=\"DEFAULTSHELL={request.Shell}\"");
             await RunKubeCommand(id, $"expose deployment {request.Name} --type=LoadBalancer --name={request.Name} --namespace={Helpers.KubeNamespace}");
 
             var ip = "";

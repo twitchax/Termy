@@ -3,13 +3,18 @@ ARG IMAGE
 FROM $IMAGE
 
 ARG ROOTPW
-ARG SHELLPATH
 
-RUN apt-get update && apt-get install -y python python-pip && pip install --upgrade pip
+# Install python for Alpine or Ubuntu.  Ignore errors.
+RUN apk add --no-cache gcc musl-dev libffi-dev openssl-dev python python-dev && \
+    python -m ensurepip && \
+    rm -r /usr/lib/python*/ensurepip && \
+    pip install --upgrade pip setuptools && \
+    rm -r /root/.cache; exit 0
+RUN apt-get update && apt-get install -y python python-pip; exit 0
 
+RUN pip install --upgrade pip
 RUN pip install butterfly
-RUN pip install butterfly[themes]
 
 RUN echo "root:$ROOTPW" | chpasswd
 
-ENTRYPOINT butterfly.server.py --host=* --port=80 --unsecure --login --shell=$SHELLPATH
+ENTRYPOINT butterfly.server.py --host=* --port=80 --unsecure --login --shell=$DEFAULTSHELL
