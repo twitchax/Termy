@@ -41,7 +41,7 @@ namespace Termy.Controllers
             var id = GetId();
             Console.WriteLine($" [{id}] Starting {nameof(DeleteImages)} ...");
 
-            await RunDockerCommand(id, "rmi \\$(docker images -q) -f");
+            await RunDockerCommand(id, "rmi $(docker images -q) -f");
 
             Console.WriteLine($" [{id}] Done.");
             return Ok();
