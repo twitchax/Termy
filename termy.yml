@@ -22,12 +22,12 @@ spec:
         - containerPort: 80
         - containerPort: 443
         volumeMounts:
-        - name: kubeconfig
+        - name: termysecrets
           readOnly: true
-          mountPath: /etc/kube
+          mountPath: /etc/secrets
         securityContext:
           privileged: true
       volumes:
-      - name: kubeconfig
+      - name: termysecrets
         secret:
-          secretName: kubeconfig
+          secretName: termysecrets

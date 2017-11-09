@@ -6,7 +6,7 @@ A docker image that lives in a Kube cluster which takes requests and spins up we
 
 ### Install
 
-The Kube config must be placed in `/etc/kube/config` via a secrets mount or by manually placing it in the image (not recommended).
+The Kube config must be placed in `/etc/secrets/kubeconfig` via a secrets mount or by manually placing it in the image (not recommended).
 
 ### Test
 

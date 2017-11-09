@@ -6,10 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Docker.DotNet;
-using Docker.DotNet.Models;
-using k8s;
-using k8s.Models;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
@@ -20,7 +16,7 @@ namespace Termy.Controllers
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("1.1.0");
+            return Ok("1.2.1");
         }
 
         [HttpGet("/api/docker/images")]
@@ -41,7 +37,10 @@ namespace Termy.Controllers
             var id = GetId();
             Console.WriteLine($" [{id}] Starting {nameof(DeleteImages)} ...");
 
-            await RunDockerCommand(id, "rmi $(docker images -q) -f");
+            var imageIds = (await RunDockerCommand(id, "images -q")).Standard.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s));
+
+            foreach(var imageId in imageIds)
+                await RunDockerCommand(id, $"rmi -f {imageId}");
 
             Console.WriteLine($" [{id}] Done.");
             return Ok();
@@ -173,13 +172,6 @@ namespace Termy.Controllers
             t.Start();
 
             return t;
-        }
-    }
-
-    public class Progress : IProgress<JSONMessage>
-    {
-        void IProgress<JSONMessage>.Report(JSONMessage value)
-        {
         }
     }
 
