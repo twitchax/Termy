@@ -33,13 +33,16 @@ RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s
 RUN chmod +x ./kubectl
 RUN mv ./kubectl /usr/local/bin/kubectl
 
+# Get Azure CLI.
+RUN apt-get update -qq && apt-get install -qqy python libssl-dev libffi-dev python-dev build-essential
+RUN curl -L https://azurecliprod.blob.core.windows.net/install.py > azcliinstall.py
+RUN chmod a+x azcliinstall.py
+RUN echo -ne "\n\n" | ./azcliinstall.py
+
 # Copy app.
 WORKDIR /app
 COPY --from=builder /builder/bin/Release/netcoreapp2.0/publish .
 COPY Dockerfile_inner Dockerfile
-
-#RUN mkdir /etc/kube
-#COPY .hidden/config /etc/kube/config
 
 # Start docker daemon (has to be run at startup with --privileged) and web server.
 ENTRYPOINT nohup wrapdocker & dotnet Termy.dll

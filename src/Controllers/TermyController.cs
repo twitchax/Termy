@@ -16,7 +16,7 @@ namespace Termy.Controllers
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("1.2.1");
+            return Ok("1.3.0");
         }
 
         [HttpGet("/api/docker/images")]
@@ -58,6 +58,18 @@ namespace Termy.Controllers
             return Ok(terminals);
         }
 
+        [HttpGet("/api/terminals/{name}")]
+        public async Task<IActionResult> GetTerminal(string name)
+        {
+            var id = GetId();
+            Console.WriteLine($" [{id}] Starting {nameof(GetTerminal)} ...");
+
+            var (terminals, error) = await RunKubeCommand(id, $"get services {name} --namespace={Helpers.KubeNamespace}");
+
+            Console.WriteLine($" [{id}] Done.");
+            return Ok(terminals);
+        }
+
         [HttpDelete("/api/terminals")]
         public async Task<IActionResult> DeleteTerminals()
         {
@@ -65,6 +77,12 @@ namespace Termy.Controllers
             Console.WriteLine($" [{id}] Starting {nameof(DeleteTerminals)} ...");
 
             await RunKubeCommand(id, $"delete deployment,service --namespace={Helpers.KubeNamespace} --all");
+
+            await RunAzCommand(id, Helpers.AzLoginCommand);
+            var records = (await RunAzCommand(id, $"network dns record-set list -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} --query [].name -o tsv")).Standard.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s) && s != "@");
+
+            foreach(var record in records)
+                await RunAzCommand(id, $"network dns record-set a delete -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {record} -y");
 
             Console.WriteLine($" [{id}] Done.");
             return Ok();
@@ -77,6 +95,9 @@ namespace Termy.Controllers
             Console.WriteLine($" [{id}] Starting {nameof(DeleteTerminal)} ...");
 
             await RunKubeCommand(id, $"delete deployment,service {name} --namespace={Helpers.KubeNamespace}");
+
+            await RunAzCommand(id, Helpers.AzLoginCommand);
+            await RunAzCommand(id, $"network dns record-set a delete -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {name} -y");
 
             Console.WriteLine($" [{id}] Done.");
             return Ok();
@@ -131,9 +152,13 @@ namespace Termy.Controllers
                 Console.WriteLine($" [{id}] Waiting for ip: {ip} ...");
                 await Task.Delay(5000);
             } while(ip == "''");
+
+            Console.WriteLine($" [{id}] Provisioning DNS record ...");
+            await RunAzCommand(id, Helpers.AzLoginCommand);
+            await RunAzCommand(id, $"network dns record-set a add-record -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {request.Name} -a {ip.Replace("\'", "")}");
             
             Console.WriteLine($" [{id}] Done.");
-            return Ok((await RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard);
+            return Ok((await RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard + "\n" + $"{request.Name}.{Helpers.AzDnsZone}");
         }
 
         private string GetId() => new string(Guid.NewGuid().ToString().Take(6).ToArray());
@@ -146,6 +171,11 @@ namespace Termy.Controllers
         private Task<(string Standard, string Error)> RunDockerCommand(string id, string args)
         {
             return RunCommand(id, "docker", args);
+        }
+
+        private Task<(string Standard, string Error)> RunAzCommand(string id, string args)
+        {
+            return RunCommand(id, "/root/bin/az", args);
         }
 
         private Task<(string Standard, string Error)> RunCommand(string id, string command, string args)

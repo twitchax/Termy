@@ -8,7 +8,6 @@
     <PackageReference Include="AspNetCore.Proxy" Version="1.2.2" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.0.0" />
-    <PackageReference Include="Microsoft.Rest.ClientRuntime" Version="3.0.3" />
   </ItemGroup>
 
   <ItemGroup>
