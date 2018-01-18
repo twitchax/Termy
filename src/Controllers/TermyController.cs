@@ -161,6 +161,18 @@ namespace Termy.Controllers
             return Ok((await RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard + "\n" + $"{request.Name}.{Helpers.AzDnsZone}");
         }
 
+        [HttpPost("/api/kill")]
+        public async Task<IActionResult> CreateTerminal([FromBody]KillRequest request)
+        {
+            if(request.AdminPassword == Helpers.AdminPassword)
+            {
+                Environment.Exit(0);
+                return Ok();
+            }
+
+            return this.Unauthorized();
+        }
+
         private string GetId() => new string(Guid.NewGuid().ToString().Take(6).ToArray());
 
         private Task<(string Standard, string Error)> RunKubeCommand(string id, string args)
@@ -222,5 +234,11 @@ namespace Termy.Controllers
         public string DockerUsername { get; set; }
         [Required]
         public string DockerPassword { get; set; }
+    }
+
+    public class KillRequest
+    {
+        [Required]
+        public string AdminPassword { get; set; }
     }
 }

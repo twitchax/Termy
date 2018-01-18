@@ -20,6 +20,8 @@ namespace Termy
 
         public static readonly string AzLoginCommand = File.ReadAllText("/etc/secrets/azlogin");
         public static readonly string AzDnsZone = "box.termy.in";
-        public static readonly string AzGroup = "Termy";
+        public static readonly string AzGroup = "Termy3";
+
+        public static readonly string AdminPassword = File.ReadAllText("/etc/secrets/adminpw");
     }
 }
