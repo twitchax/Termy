@@ -16,7 +16,7 @@ namespace Termy.Controllers
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("1.3.0");
+            return Ok("1.3.1");
         }
 
         [HttpGet("/api/docker/images")]
@@ -162,7 +162,7 @@ namespace Termy.Controllers
         }
 
         [HttpPost("/api/kill")]
-        public async Task<IActionResult> CreateTerminal([FromBody]KillRequest request)
+        public IActionResult KillTerminal([FromBody]KillRequest request)
         {
             if(request.AdminPassword == Helpers.AdminPassword)
             {
