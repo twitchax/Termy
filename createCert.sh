@@ -6,7 +6,7 @@ set -e
 
 # 2. Run in manual mode with DNS challenge (https://certbot.eff.org/docs/using.html#manual).
 
-sudo ./certbot-auto certonly --manual --preferred-challenges dns
+sudo ./certbot-auto certonly --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory
 
 # 3. Put the challenge in the DNS Zones File as a TXT.
 
