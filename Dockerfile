@@ -2,8 +2,7 @@ ARG source=.
 
 FROM microsoft/dotnet as builder
 WORKDIR /builder
-COPY $source/src .
-RUN ["dotnet", "restore"]
+COPY $source/src/Core .
 RUN ["dotnet", "publish", "-c", "Release"]
 
 FROM microsoft/aspnetcore
