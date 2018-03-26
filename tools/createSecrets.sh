@@ -1,4 +1,5 @@
 #!/bin/bash
+# Run from project root.
 
 set -e
 
