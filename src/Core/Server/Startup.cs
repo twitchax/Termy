@@ -40,6 +40,7 @@ namespace Termy
             }
 
             app.UseMvc();
+            app.UseStaticFiles();
         }
     }
 }

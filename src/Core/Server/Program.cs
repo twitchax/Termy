@@ -23,6 +23,7 @@ namespace Termy
         public static IWebHost BuildWebHost(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
                 .UseStartup<Startup>()
+                .UseContentRoot("wwwroot/dist")
                 .UseKestrel(options => 
                 {
                     options.Listen(IPAddress.Any, 80);

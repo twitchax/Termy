@@ -1,5 +1,5 @@
 Arguments: 
-  /usr/local/bin/node /usr/local/Cellar/yarn/1.5.1_1/libexec/bin/yarn.js install --save-dev webpack-shell-plugin
+  /usr/local/bin/node /usr/local/Cellar/yarn/1.5.1_1/libexec/bin/yarn.js build
 
 PATH: 
   /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/TeX/texbin:/usr/local/go/bin:/usr/local/share/dotnet:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/Applications/Xamarin Workbooks.app/Contents/SharedSupport/path-bin:/Users/twitchax/bin:/Users/twitchax/bin
@@ -38,7 +38,8 @@ npm manifest:
       "ts-loader": "2.3.7",
       "typescript": "2.5.3",
       "webpack": "3.6.0",
-      "webpack-dev-server": "2.9.1"
+      "webpack-dev-server": "2.9.1",
+      "webpack-shell-plugin": "^0.5.0"
     },
     "resolutions": {
       "glob": "7.1.2",
@@ -2990,6 +2991,10 @@ Lockfile:
       webpack-dev-middleware "^1.11.0"
       yargs "^6.6.0"
   
+  webpack-shell-plugin@^0.5.0:
+    version "0.5.0"
+    resolved "https://registry.yarnpkg.com/webpack-shell-plugin/-/webpack-shell-plugin-0.5.0.tgz#29b8a1d80ddeae0ddb10e729667f728653c2c742"
+  
   webpack-sources@^1.0.1:
     version "1.0.1"
     resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-1.0.1.tgz#c7356436a4d13123be2e2426a05d1dad9cbe65cf"
@@ -3111,10 +3116,16 @@ Lockfile:
       yargs-parser "^7.0.0"
 
 Trace: 
-  Error: `install` has been replaced with `add` to add new dependencies. Run "yarn add webpack-shell-plugin --dev" instead.
-      at new MessageError (/usr/local/Cellar/yarn/1.5.1_1/libexec/lib/cli.js:186:110)
-      at Object.<anonymous> (/usr/local/Cellar/yarn/1.5.1_1/libexec/lib/cli.js:21987:13)
-      at Generator.next (<anonymous>)
-      at step (/usr/local/Cellar/yarn/1.5.1_1/libexec/lib/cli.js:98:30)
-      at /usr/local/Cellar/yarn/1.5.1_1/libexec/lib/cli.js:109:13
-      at <anonymous>
+  Error: Command failed.
+  Exit code: 127
+  Command: sh
+  Arguments: -c webpack --config ./webpack.prod.conf.js
+  Directory: /Users/twitchax/OneDrive/Projects/Termy/src/Core
+  Output:
+  
+      at ProcessTermError.MessageError (/usr/local/Cellar/yarn/1.5.1_1/libexec/lib/cli.js:186:110)
+      at new ProcessTermError (/usr/local/Cellar/yarn/1.5.1_1/libexec/lib/cli.js:226:113)
+      at ChildProcess.<anonymous> (/usr/local/Cellar/yarn/1.5.1_1/libexec/lib/cli.js:30281:17)
+      at ChildProcess.emit (events.js:160:13)
+      at maybeClose (internal/child_process.js:943:16)
+      at Process.ChildProcess._handle.onexit (internal/child_process.js:220:5)

@@ -13,16 +13,10 @@ namespace Termy.Controllers
 {
     public class TermyController : Controller
     {
-        [HttpGet("/")]
-        public IActionResult GetRoot()
-        {
-            return Ok();
-        }
-
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("1.3.1");
+            return Ok("1.4.0");
         }
 
         [HttpGet("/api/docker/images")]

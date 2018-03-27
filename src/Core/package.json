@@ -8,7 +8,8 @@
   "flat": true,
   "scripts": {
     "start": "webpack-dev-server --open --config ./webpack.dev.conf.js",
-    "build": "webpack --config ./webpack.prod.conf.js"
+    "build": "webpack --config ./webpack.prod.conf.js", 
+    "builddev": "webpack --config ./webpack.prod.conf.js"
   },
   "dependencies": {
     "@polymer/polymer": "next",
@@ -22,7 +23,8 @@
     "ts-loader": "2.3.7",
     "typescript": "2.5.3",
     "webpack": "3.6.0",
-    "webpack-dev-server": "2.9.1"
+    "webpack-dev-server": "2.9.1",
+    "webpack-shell-plugin": "^0.5.0"
   },
   "resolutions": {
     "glob": "7.1.2",

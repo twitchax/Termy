@@ -2,6 +2,7 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const WebpackShellPlugin = require('webpack-shell-plugin');
 const webpack = require('webpack');
 
 module.exports = {
@@ -10,7 +11,7 @@ module.exports = {
   },
   output: {
     filename: '[name].[chunkhash].js',
-    path: path.resolve(__dirname, 'dist')
+    path: path.resolve(__dirname, 'wwwroot/dist')
   },
   module: {
     rules: [
@@ -56,5 +57,8 @@ module.exports = {
       }
     ]),
     new webpack.IgnorePlugin(/vertx/),
+    new WebpackShellPlugin({
+      onBuildEnd: ['dotnet publish -c Release'] 
+    })
   ]
 };
