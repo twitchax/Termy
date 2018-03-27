@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Termy.Controllers
 {
@@ -16,7 +17,7 @@ namespace Termy.Controllers
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("1.4.0");
+            return Ok("2.0.0");
         }
 
         [HttpGet("/api/docker/images")]
@@ -28,7 +29,7 @@ namespace Termy.Controllers
             var images = await RunDockerCommand(id, "images");
 
             Console.WriteLine($" [{id}] Done.");
-            return Ok(images.Standard);
+            return Ok(TextToJArray(images.Standard));
         }
 
         [HttpDelete("/api/docker/images")]
@@ -55,7 +56,7 @@ namespace Termy.Controllers
             var (terminals, error) = await RunKubeCommand(id, $"get services --namespace={Helpers.KubeNamespace}");
 
             Console.WriteLine($" [{id}] Done.");
-            return Ok(terminals);
+            return Ok(TextToJArray(terminals));
         }
 
         [HttpGet("/api/terminals/{name}")]
@@ -214,6 +215,44 @@ namespace Termy.Controllers
             t.Start();
 
             return t;
+        }
+
+        private JArray TextToJArray(string text)
+        {
+            var lines = text
+                .Split('\n')
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(line => line
+                    .Split("  ")
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim().ToLower())
+                    .ToList())
+                .ToList();
+
+            var props = lines.FirstOrDefault();
+            var valueLines = lines.Count > 1 ? lines.Skip(1).ToList() : new List<List<string>>();
+
+            var list = new JArray();
+            foreach(var valueLine in valueLines)
+            {
+                var obj = new JObject();
+
+                Console.WriteLine($"Values: {GetString(valueLine)}");
+
+                for(int k = 0; k < props.Count; k++)
+                {
+                    obj.Add(props[k], valueLine[k]);
+                }
+
+                list.Add(obj);
+            }
+            
+            return list;
+        }
+
+        private string GetString(IEnumerable<string> list)
+        {
+            return list.Aggregate("", (agg, s) => $"{agg}, {s}");
         }
     }
 

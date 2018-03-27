@@ -1,19 +1,20 @@
 ARG source=.
 
-FROM microsoft/dotnet as builder
-WORKDIR /builder
-COPY $source/src/Core .
+# Create a special builder image with build dependencies.
+FROM microsoft/dotnet as builderimg
 RUN apt-get update && apt-get install apt-transport-https
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
 RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
 RUN apt-get update && apt-get install -y yarn
 RUN curl -sL https://deb.nodesource.com/setup_9.x | bash -
 RUN apt-get install -y nodejs
-RUN ["yarn", "build"]
 
-FROM microsoft/aspnetcore
+
+# Create a special sippable image with ship dependencies.
+FROM microsoft/aspnetcore as shipimg
 
 EXPOSE 80
+EXPOSE 443
 
 # Get docker dependencies.
 RUN apt-get update -qq && apt-get install -qqy \
@@ -44,9 +45,22 @@ RUN curl -L https://azurecliprod.blob.core.windows.net/install.py > azcliinstall
 RUN chmod a+x azcliinstall.py
 RUN echo -ne "\n\n" | ./azcliinstall.py
 
-# Copy app.
+ARG config="Release"
+
+# Run the build in a builder.
+FROM builderimg as builder
+ARG source
+ARG config
+WORKDIR /builder
+COPY ${source}/src/Core .
+RUN if [ "${config}" = "Release" ]; then yarn build; else yarn builddebug; fi
+
+# Create shippable image.
+FROM shipimg
+ARG config
 WORKDIR /app
-COPY --from=builder /builder/bin/Release/netcoreapp2.0/publish .
+RUN echo ${config}
+COPY --from=builder /builder/bin/${config}/netcoreapp2.0/publish .
 COPY Dockerfile_inner Dockerfile
 
 # Start docker daemon (has to be run at startup with --privileged) and web server.

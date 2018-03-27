@@ -39,8 +39,9 @@ namespace Termy
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseMvc();
+            app.UseDefaultFiles();
             app.UseStaticFiles();
+            app.UseMvc();
         }
     }
 }
