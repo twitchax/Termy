@@ -229,15 +229,13 @@ namespace Termy.Controllers
                     .ToList())
                 .ToList();
 
-            var props = lines.FirstOrDefault();
+            var props = lines.FirstOrDefault().Select(p => p.Replace("-", "").Replace("(", "").Replace(")", "")).ToList();
             var valueLines = lines.Count > 1 ? lines.Skip(1).ToList() : new List<List<string>>();
 
             var list = new JArray();
             foreach(var valueLine in valueLines)
             {
                 var obj = new JObject();
-
-                Console.WriteLine($"Values: {GetString(valueLine)}");
 
                 for(int k = 0; k < props.Count; k++)
                 {

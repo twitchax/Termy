@@ -1,3 +1,3 @@
-import { MyApp } from './app/index';
+import { MyApp } from './app/app';
 
 customElements.define('my-app', MyApp);

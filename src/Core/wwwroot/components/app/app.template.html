@@ -1,1 +1,17 @@
-<paper-card>Hello world</paper-card>
+<paper-card>
+    <h1>Terminals</h1>
+
+    <br />
+    
+    <iron-list items="[[terminals]]" as="terminal">
+        <template>
+          <div>[[terminal.name]]</div>
+        </template>
+      </iron-list>
+</paper-card>
+
+<style>
+    paper-card {
+        padding: 20px;
+    }
+</style>

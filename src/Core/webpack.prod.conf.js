@@ -10,7 +10,7 @@ module.exports = {
     app: './wwwroot/index'
   },
   output: {
-    filename: '[name].[chunkhash].js',
+    filename: '[name].[hash].js',
     path: path.resolve(__dirname, 'wwwroot/dist')
   },
   module: {
@@ -43,20 +43,21 @@ module.exports = {
     }),
     new CopyWebpackPlugin([
       {
-        from: path.resolve(__dirname, './wwwroot/static'),
-        to: 'static',
+        from: 'wwwroot/static',
+        to: 'static/',
         ignore: ['.*']
       },
       {
-        from: path.join(
-          path.resolve(__dirname, './node_modules/@webcomponents/webcomponentsjs/'),
-          '*.js'
-        ),
-        to: './webcomponentjs',
+        from: 'node_modules/@webcomponents/webcomponentsjs/webcomponents-lite.js',
+        to: 'webcomponentjs/',
+        flatten: true
+      },
+      {
+        from: 'node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js',
+        to: 'webcomponentjs/',
         flatten: true
       }
     ]),
-    new webpack.IgnorePlugin(/vertx/),
     new WebpackShellPlugin({
       onBuildEnd: ['dotnet publish -c Release'] 
     })
