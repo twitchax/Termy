@@ -12,8 +12,12 @@
   },
   "dependencies": {
     "@polymer/iron-list": "next",
+    "@polymer/paper-button": "next",
     "@polymer/paper-card": "next",
+    "@polymer/paper-input": "next",
     "@polymer/paper-item": "next",
+    "@polymer/paper-spinner": "next",
+    "@polymer/paper-toast": "next",
     "@polymer/polymer": "next",
     "@webcomponents/webcomponentsjs": "1.1.1",
     "browser-request": "0.3.3"
@@ -130,6 +134,7 @@
     "mime": "2.2.2",
     "faye-websocket": "0.11.1",
     "url-parse": "1.2.0",
-    "querystringify": "1.0.0"
+    "querystringify": "1.0.0",
+    "@polymer/polymer": "3.0.0-pre.12"
   }
 }

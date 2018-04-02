@@ -45,19 +45,18 @@ RUN curl -L https://azurecliprod.blob.core.windows.net/install.py > azcliinstall
 RUN chmod a+x azcliinstall.py
 RUN echo -ne "\n\n" | ./azcliinstall.py
 
-ARG config="Release"
-
 # Run the build in a builder.
 FROM builderimg as builder
 ARG source
-ARG config
+ARG config="Release"
 WORKDIR /builder
 COPY ${source}/src/Core .
+RUN yarn install
 RUN if [ "${config}" = "Release" ]; then yarn build; else yarn builddebug; fi
 
 # Create shippable image.
 FROM shipimg
-ARG config
+ARG config="Release"
 WORKDIR /app
 RUN echo ${config}
 COPY --from=builder /builder/bin/${config}/netcoreapp2.0/publish .

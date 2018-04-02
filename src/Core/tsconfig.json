@@ -2,7 +2,6 @@
   "compilerOptions": {
     "module": "commonjs",
     "noImplicitAny": false,
-    "outDir": "./obj/wwwroot",
     "rootDir": "./wwwroot/",
     "sourceMap": true,
     "strict": true,

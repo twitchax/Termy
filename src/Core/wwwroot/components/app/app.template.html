@@ -1,17 +1,148 @@
-<paper-card>
-    <h1>Terminals</h1>
+<paper-toast duration="10" id="toast"></paper-toast>
 
-    <br />
-    
-    <iron-list items="[[terminals]]" as="terminal">
-        <template>
-          <div>[[terminal.name]]</div>
-        </template>
-      </iron-list>
-</paper-card>
+<paper-spinner id="loading" style="position: absolute; left: 50vw; top: 50vh;"></paper-spinner>
+
+<div id="main" style="display: flex; flex-direction: row; align-items: flex-start;">
+    <paper-card>
+        <h1>Create Terminal</h1>
+
+        <paper-input id="terminalName" label="Name" required auto-validate error-message="Required."></paper-input>
+        <paper-input id="terminalImage" label="Image" required auto-validate error-message="Required."></paper-input>
+        <paper-input id="terminalTag" label="Tag" required auto-validate error-message="Required."></paper-input>
+        <paper-input id="terminalRootPassword" label="Root Password" type="password" required auto-validate error-message="Required."></paper-input>
+        <paper-input id="terminalShell" label="Shell"></paper-input>
+        <paper-input id="terminalDockerUsername" label="Docker Username" required auto-validate error-message="Required."></paper-input>
+        <paper-input id="terminalDockerPassword" label="Docker Password" type="password" required auto-validate error-message="Required."></paper-input>
+
+        <br />
+        <br />
+
+        <paper-button on-tap="createTerminal" raised>Create</paper-button>
+    </paper-card>
+
+    <paper-card>
+        <h1>Terminals</h1>
+
+        <br />
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>IP</th>
+                    <th>Delete?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template is="dom-repeat" items="[[terminals]]" as="terminal">
+                    <tr>
+                        <td>[[terminal.name]]</td>
+                        <td>
+                            <a href="http://[[terminal.name]].box.termy.in/">http://[[terminal.name]].box.termy.in/</a>
+                        </td>
+                        <td>[[terminal.externalip]]</td>
+                        <td>
+                            <paper-button data-name$="[[terminal.name]]" on-tap="deleteTerminal" raised>Delete</paper-button>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+
+        <br />
+        <br />
+
+        <paper-button on-tap="deleteTerminals" raised>Delete All</paper-button>
+    </paper-card>
+
+    <paper-card>
+        <h1>Images</h1>
+
+        <br />
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Repository</th>
+                    <th>Tag</th>
+                    <th>Image Id</th>
+                    <th>Created</th>
+                    <th>Size</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template is="dom-repeat" items="[[images]]" as="image">
+                    <tr>
+                        <td>[[image.repository]]</td>
+                        <td>[[image.tag]]</td>
+                        <td>[[image.imageid]]</td>
+                        <td>[[image.created]]</td>
+                        <td>[[image.size]]</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+
+        <br />
+        <br />
+
+        <paper-button on-tap="deleteImages" raised>Delete All</paper-button>
+    </paper-card>
+</div>
 
 <style>
     paper-card {
         padding: 20px;
+        margin: 10px;
+    }
+
+    .blur {
+        filter: blur(5px);
+    }
+
+    table {
+        border: 2px solid #FFFFFF;
+        width: 100%;
+        text-align: center;
+        border-collapse: collapse;
+    }
+
+    table td,
+    table th {
+        border: 1px solid #FFFFFF;
+        padding: 3px 4px;
+    }
+
+    table tbody td {
+        font-size: 13px;
+    }
+
+    table thead {
+        background: #FFFFFF;
+        border-bottom: 4px solid #333333;
+    }
+
+    table thead th {
+        font-size: 15px;
+        font-weight: bold;
+        color: #333333;
+        text-align: center;
+        border-left: 2px solid #333333;
+    }
+
+    table thead th:first-child {
+        border-left: none;
+    }
+
+    table tfoot {
+        font-size: 14px;
+        font-weight: bold;
+        color: #333333;
+        border-top: 4px solid #333333;
+    }
+
+    table tfoot td {
+        font-size: 14px;
     }
 </style>

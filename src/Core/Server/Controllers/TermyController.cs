@@ -20,7 +20,7 @@ namespace Termy.Controllers
             return Ok("2.0.0");
         }
 
-        [HttpGet("/api/docker/images")]
+        [HttpGet("/api/image")]
         public async Task<IActionResult> GetImages()
         {
             var id = GetId();
@@ -32,7 +32,7 @@ namespace Termy.Controllers
             return Ok(TextToJArray(images.Standard));
         }
 
-        [HttpDelete("/api/docker/images")]
+        [HttpDelete("/api/image")]
         public async Task<IActionResult> DeleteImages()
         {
             var id = GetId();
@@ -47,7 +47,7 @@ namespace Termy.Controllers
             return Ok();
         }
 
-        [HttpGet("/api/terminals")]
+        [HttpGet("/api/terminal")]
         public async Task<IActionResult> GetTerminals()
         {
             var id = GetId();
@@ -59,7 +59,7 @@ namespace Termy.Controllers
             return Ok(TextToJArray(terminals));
         }
 
-        [HttpGet("/api/terminals/{name}")]
+        [HttpGet("/api/terminal/{name}")]
         public async Task<IActionResult> GetTerminal(string name)
         {
             var id = GetId();
@@ -71,7 +71,7 @@ namespace Termy.Controllers
             return Ok(terminals);
         }
 
-        [HttpDelete("/api/terminals")]
+        [HttpDelete("/api/terminal")]
         public async Task<IActionResult> DeleteTerminals()
         {
             var id = GetId();
@@ -89,7 +89,7 @@ namespace Termy.Controllers
             return Ok();
         }
 
-        [HttpDelete("/api/terminals/{name}")]
+        [HttpDelete("/api/terminal/{name}")]
         public async Task<IActionResult> DeleteTerminal(string name)
         {
             var id = GetId();
@@ -104,7 +104,7 @@ namespace Termy.Controllers
             return Ok();
         }
 
-        [HttpPost("/api/terminals")]
+        [HttpPost("/api/terminal")]
         public async Task<IActionResult> CreateTerminal([FromBody]CreateTerminalRequest request)
         {
             var id = GetId();
@@ -116,6 +116,11 @@ namespace Termy.Controllers
             Console.WriteLine($"    [{id}] Shell: {request.Shell} ...");
 
             Console.WriteLine($" [{id}] Validating ...");
+            if(!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                return this.BadRequest(errors);
+            }
             if(!new Regex("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$").IsMatch(request.Name))
             {
                 Console.WriteLine($" [{id}] Failed: bad name.");
@@ -229,7 +234,7 @@ namespace Termy.Controllers
                     .ToList())
                 .ToList();
 
-            var props = lines.FirstOrDefault().Select(p => p.Replace("-", "").Replace("(", "").Replace(")", "")).ToList();
+            var props = lines.FirstOrDefault()?.Select(p => p.Replace("-", "").Replace("(", "").Replace(")", "").Replace(" ", "")).ToList();
             var valueLines = lines.Count > 1 ? lines.Skip(1).ToList() : new List<List<string>>();
 
             var list = new JArray();
@@ -246,11 +251,6 @@ namespace Termy.Controllers
             }
             
             return list;
-        }
-
-        private string GetString(IEnumerable<string> list)
-        {
-            return list.Aggregate("", (agg, s) => $"{agg}, {s}");
         }
     }
 
