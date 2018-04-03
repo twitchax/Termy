@@ -43,7 +43,6 @@ export class MyApp extends PolymerElement {
             if(!this.checkResponse(err, res, body)) return;
             
             this.images = JSON.parse(body);
-            console.log(this.images);
         });
     }
 
@@ -57,7 +56,9 @@ export class MyApp extends PolymerElement {
         req.dockerUsername = (this as any).$.terminalDockerUsername.value;
         req.dockerPassword = (this as any).$.terminalDockerPassword.value;
 
+        this.showLoading(true);
         request({ method: 'POST', url: '/api/terminal', body: JSON.stringify(req), json:true }, (err, res, body) => {
+            this.showLoading(false);
             this.showToast(`Success!  Terminal '${req.name}' created.  Refreshing...`);
 
             (this as any).$.terminalName.value = '';
@@ -75,7 +76,9 @@ export class MyApp extends PolymerElement {
     private deleteTerminal(e) {
         var terminalName = e.target.dataset['name'];
 
+        this.showLoading(true);
         request({ method: 'DELETE', url: `/api/terminal/${terminalName}/` }, (err, res, body) => {
+            this.showLoading(false);
             if(!this.checkResponse(err, res, body)) return;
 
             this.showToast(`Success!  Terminal '${terminalName}' deleted.  Refreshing...`);
@@ -85,7 +88,6 @@ export class MyApp extends PolymerElement {
 
     private deleteTerminals() {
         this.showLoading(true);
-
         request({ method: 'DELETE', url: '/api/terminal' }, (err, res, body) => {
             this.showLoading(false);
             if(!this.checkResponse(err, res, body)) return;
@@ -96,7 +98,9 @@ export class MyApp extends PolymerElement {
     }
 
     private deleteImages() {
+        this.showLoading(true);
         request({ method: 'DELETE', url: '/api/image' }, (err, res, body) => {
+            this.showLoading(false);
             if(!this.checkResponse(err, res, body)) return;
 
             this.showToast(`Success!  Images deleted.  Refreshing...`);
