@@ -8,11 +8,8 @@
 
         <paper-input id="terminalName" label="Name" required auto-validate error-message="Required."></paper-input>
         <paper-input id="terminalImage" label="Image" required auto-validate error-message="Required."></paper-input>
-        <paper-input id="terminalTag" label="Tag" required auto-validate error-message="Required."></paper-input>
-        <paper-input id="terminalRootPassword" label="Root Password" type="password" required auto-validate error-message="Required."></paper-input>
+        <paper-input id="terminalPassword" label="Password" type="password"></paper-input>
         <paper-input id="terminalShell" label="Shell"></paper-input>
-        <paper-input id="terminalDockerUsername" label="Docker Username" required auto-validate error-message="Required."></paper-input>
-        <paper-input id="terminalDockerPassword" label="Docker Password" type="password" required auto-validate error-message="Required."></paper-input>
 
         <br />
         <br />
@@ -54,40 +51,6 @@
         <br />
 
         <paper-button on-tap="deleteTerminals" raised>Delete All</paper-button>
-    </paper-card>
-
-    <paper-card>
-        <h1>Images</h1>
-
-        <br />
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Repository</th>
-                    <th>Tag</th>
-                    <th>Image Id</th>
-                    <th>Created</th>
-                    <th>Size</th>
-                </tr>
-            </thead>
-            <tbody>
-                <template is="dom-repeat" items="[[images]]" as="image">
-                    <tr>
-                        <td>[[image.repository]]</td>
-                        <td>[[image.tag]]</td>
-                        <td>[[image.imageid]]</td>
-                        <td>[[image.created]]</td>
-                        <td>[[image.size]]</td>
-                    </tr>
-                </template>
-            </tbody>
-        </table>
-
-        <br />
-        <br />
-
-        <paper-button on-tap="deleteImages" raised>Delete All</paper-button>
     </paper-card>
 </div>
 

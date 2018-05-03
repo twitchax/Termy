@@ -2,23 +2,31 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    run: termy
-  name: termy
-  namespace: default
+    run: {{name}}
+  name: {{name}}
+  namespace: terminals
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: termy
+      run: {{name}}
   template:
     metadata:
       labels:
-        run: termy
+        run: {{name}}
     spec:
       containers:
-      - image: twitchax/termy
-        name: termy
+      - image: {{image}}
+        name: {{name}}
+        command: ["echo Hello"]
         imagePullPolicy: Always
+        env:
+        - name: PORT
+          value: "443"
+        - name: PASSWORD
+          value: "{{password}}"
+        - name: SHELL
+          value: "{{shell}}"
         ports:
         - containerPort: 80
         - containerPort: 443
@@ -26,8 +34,6 @@ spec:
         - name: termysecrets
           readOnly: true
           mountPath: /etc/secrets
-        securityContext:
-          privileged: true
       volumes:
       - name: termysecrets
         secret:

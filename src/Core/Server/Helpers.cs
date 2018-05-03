@@ -23,5 +23,9 @@ namespace Termy
         public static readonly string AzGroup = "Termy";
 
         public static readonly string AdminPassword = File.ReadAllText("/etc/secrets/adminpw");
+
+        public static readonly string TerminalYamlTemplate = File.ReadAllText("terminal.yml");
+        public static readonly string TerminalHostServerFile = "termy-terminal-host";
+        public static readonly string TerminalHostPuttyFile = "pty.node";
     }
 }

@@ -13,21 +13,10 @@ declare module Bll {
         age: string;
     }
 
-    interface Image {
-        repository:string;
-        tag: string;
-        imageid: string; 
-        created: string;
-        size: string;
-    }
-
     interface CreateTerminalRequest {
         name: string;
         image: string;
-        tag: string;
-        rootPassword: string;
+        password: string;
         shell: string;
-        dockerUsername: string;
-        dockerPassword: string;
     }
 }

@@ -1,5 +1,6 @@
 ARG source=.
 
+
 # Create a special builder image with build dependencies.
 FROM microsoft/dotnet as builderimg
 RUN apt-get update && apt-get install apt-transport-https
@@ -10,29 +11,16 @@ RUN curl -sL https://deb.nodesource.com/setup_9.x | bash -
 RUN apt-get install -y nodejs
 
 
-# Create a special sippable image with ship dependencies.
+# Create a special host builder img.
+FROM ubuntu as hostbuilderimg
+RUN apt-get update && apt-get install -y wget gnupg curl && curl -sL https://deb.nodesource.com/setup_9.x | bash - && apt-get install -y nodejs && apt-get install -y build-essential
+
+
+# Create a special shippable image with ship dependencies.
 FROM microsoft/aspnetcore as shipimg
 
 EXPOSE 80
 EXPOSE 443
-
-# Get docker dependencies.
-RUN apt-get update -qq && apt-get install -qqy \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    lxc \
-    iptables
-    
-# Install docker.
-RUN curl -sSL https://get.docker.com/ | sh
-
-# Install the magic wrapper.
-COPY ./wrapdocker /usr/local/bin/wrapdocker
-RUN chmod +x /usr/local/bin/wrapdocker
-
-# Define the docker volume mapping.
-VOLUME /var/lib/docker
 
 # Get kubectl.
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
@@ -45,7 +33,8 @@ RUN curl -L https://azurecliprod.blob.core.windows.net/install.py > azcliinstall
 RUN chmod a+x azcliinstall.py
 RUN echo -ne "\n\n" | ./azcliinstall.py
 
-# Run the build in a builder.
+
+# Run the termy build in a builder.
 FROM builderimg as builder
 ARG source
 ARG config="Release"
@@ -54,13 +43,24 @@ COPY ${source}/src/Core .
 RUN yarn install
 RUN if [ "${config}" = "Release" ]; then yarn build; else yarn builddebug; fi
 
-# Create shippable image.
+# Run the terminal host build in a buidler.
+FROM hostbuilderimg as hostbuilder
+ARG source
+WORKDIR /builder
+COPY ${source}/src/Terminal .
+RUN npm install
+RUN npm rebuild
+RUN npm run pkg
+
+# Create final image.
 FROM shipimg
+ARG source
 ARG config="Release"
 WORKDIR /app
 RUN echo ${config}
 COPY --from=builder /builder/bin/${config}/netcoreapp2.0/publish .
-COPY Dockerfile_inner Dockerfile
+COPY --from=hostbuilder /builder/termy-terminal-host .
+COPY --from=hostbuilder /builder/node_modules/node-pty/build/Release/pty.node .
+COPY ${source}/terminal.yml .
 
-# Start docker daemon (has to be run at startup with --privileged) and web server.
-ENTRYPOINT nohup wrapdocker & dotnet Termy.dll
+ENTRYPOINT dotnet Termy.dll
