@@ -27,5 +27,6 @@ namespace Termy
         public static readonly string TerminalYamlTemplate = File.ReadAllText("terminal.yml");
         public static readonly string TerminalHostServerFile = "termy-terminal-host";
         public static readonly string TerminalHostPuttyFile = "pty.node";
+        public static readonly string TerminalHostStartScript = "start-host.sh";
     }
 }

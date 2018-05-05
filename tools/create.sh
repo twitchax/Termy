@@ -3,6 +3,6 @@
 
 set -e
 
-kubectl create -f termy.yml
+kubectl create -f assets/termy.yml
 
 kubectl expose deployment termy --type=LoadBalancer --name=termy

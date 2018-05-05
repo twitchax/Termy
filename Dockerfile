@@ -34,16 +34,24 @@ RUN chmod a+x azcliinstall.py
 RUN echo -ne "\n\n" | ./azcliinstall.py
 
 
+# Run the yarn install separately since it doesn't change often.
+FROM builderimg as yarnbuilder
+ARG source
+WORKDIR /builder
+COPY ${source}/src/Core/package.json .
+COPY ${source}/src/Core/yarn.lock .
+RUN yarn install
+
 # Run the termy build in a builder.
 FROM builderimg as builder
 ARG source
 ARG config="Release"
 WORKDIR /builder
 COPY ${source}/src/Core .
-RUN yarn install
+COPY --from=yarnbuilder /builder/node_modules node_modules
 RUN if [ "${config}" = "Release" ]; then yarn build; else yarn builddebug; fi
 
-# Run the terminal host build in a buidler.
+# Run the terminal host build in a builder.
 FROM hostbuilderimg as hostbuilder
 ARG source
 WORKDIR /builder
@@ -61,6 +69,7 @@ RUN echo ${config}
 COPY --from=builder /builder/bin/${config}/netcoreapp2.0/publish .
 COPY --from=hostbuilder /builder/termy-terminal-host .
 COPY --from=hostbuilder /builder/node_modules/node-pty/build/Release/pty.node .
-COPY ${source}/terminal.yml .
+COPY ${source}/assets/terminal.yml .
+COPY ${source}/assets/start-host.sh .
 
 ENTRYPOINT dotnet Termy.dll

@@ -8,24 +8,26 @@ const pty = require('node-pty');
 const expressWs = require('express-ws')
 
 const port = process.env.PORT || 80;
-const host = '0.0.0.0';
 const password = process.env.PASSWORD || 'null';
 const shell = process.env.SHELL || 'bash';
 
 const app = express();
 
-let server;
+var server;
 
-if(port === 443) {
+if(port == 443) {
     var options = {
         pfx: fs.readFileSync('/etc/secrets/cert.pfx'),
-        passphrase: fs.readFileSync('/etc/secrets/certpw')
+        passphrase: fs.readFileSync('/etc/secrets/certpw', 'utf8'), 
     };
     server = https.createServer(options, app);
 } else {
     server = http.createServer(app);
 }
 
+server.timeout = 300000;  
+
+// Allows websockets.
 let expressWsInstance = expressWs(app, server);
 
 let terminals = {},

@@ -18,8 +18,9 @@ spec:
       containers:
       - image: {{image}}
         name: {{name}}
-        command: ["echo Hello"]
         imagePullPolicy: Always
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
         env:
         - name: PORT
           value: "443"

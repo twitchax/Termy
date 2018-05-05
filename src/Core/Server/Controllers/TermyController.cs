@@ -133,12 +133,13 @@ namespace Termy.Controllers
 
             // Copy terminal host files to pod.
             Console.WriteLine($" [{id}] Copying host files to pod ...");
-            await RunKubeCommand(id, $"cp {Helpers.TerminalHostServerFile} {Helpers.KubeNamespace}/{podName}:/app/{Helpers.TerminalHostServerFile}");
-            await RunKubeCommand(id, $"cp {Helpers.TerminalHostPuttyFile} {Helpers.KubeNamespace}/{podName}:/app/{Helpers.TerminalHostPuttyFile}");
+            await RunKubeCommand(id, $"cp {Helpers.TerminalHostServerFile} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostServerFile}");
+            await RunKubeCommand(id, $"cp {Helpers.TerminalHostPuttyFile} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostPuttyFile}");
+            await RunKubeCommand(id, $"cp {Helpers.TerminalHostStartScript} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostStartScript}");
 
             // Exec the server on the pod.
             Console.WriteLine($" [{id}] Starting pty server on pod ...");
-            await RunKubeCommand(id, $"exec {podName} --namespace={Helpers.KubeNamespace} /app/{Helpers.TerminalHostServerFile}");
+            await RunKubeCommand(id, $"exec {podName} -i --namespace={Helpers.KubeNamespace} /start-host.sh");
 
             // Expose a load balancer to get a public IP.
             Console.WriteLine($" [{id}] Exposing k8s service for deployment ...");
@@ -283,7 +284,7 @@ namespace Termy.Controllers
         public string Image { get; set; }
         
         public string Password { get; set; } = "null";
-        public string Shell { get; set; } = "/bin/bash";
+        public string Shell { get; set; } = "bash";
     }
 
     public class KillRequest
