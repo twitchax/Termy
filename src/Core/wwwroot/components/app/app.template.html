@@ -8,6 +8,7 @@
 
         <paper-input id="terminalName" label="Name" required auto-validate error-message="Required."></paper-input>
         <paper-input id="terminalImage" label="Image" required auto-validate error-message="Required."></paper-input>
+        <paper-input id="terminalPort" label="Port"></paper-input>
         <paper-input id="terminalPassword" label="Password" type="password"></paper-input>
         <paper-input id="terminalShell" label="Shell"></paper-input>
 
@@ -28,6 +29,7 @@
                     <th>Name</th>
                     <th>URL</th>
                     <th>IP</th>
+                    <th>Ports</th>
                     <th>Delete?</th>
                 </tr>
             </thead>
@@ -36,9 +38,10 @@
                     <tr>
                         <td>[[terminal.name]]</td>
                         <td>
-                            <a href="https://[[terminal.name]].box.termy.in/">https://[[terminal.name]].box.termy.in/</a>
+                            <a href="https://[[terminal.name]].box.termy.in:5443/">https://[[terminal.name]].box.termy.in:5443/</a>
                         </td>
                         <td>[[terminal.externalip]]</td>
+                        <td>[[terminal.ports]]</td>
                         <td>
                             <paper-button data-name$="[[terminal.name]]" on-tap="deleteTerminal" raised>Delete</paper-button>
                         </td>

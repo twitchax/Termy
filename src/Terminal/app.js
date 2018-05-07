@@ -15,7 +15,7 @@ const app = express();
 
 var server;
 
-if(port == 443) {
+if(port != 80) {
     var options = {
         pfx: fs.readFileSync('/etc/secrets/cert.pfx'),
         passphrase: fs.readFileSync('/etc/secrets/certpw', 'utf8'), 

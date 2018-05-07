@@ -42,6 +42,7 @@ export class MyApp extends PolymerElement {
         var req = {} as Bll.CreateTerminalRequest;
         req.name = (this as any).$.terminalName.value;
         req.image = (this as any).$.terminalImage.value;
+        req.port = (this as any).$.terminalPort.value;
         req.password = (this as any).$.terminalPassword.value;
         req.shell = (this as any).$.terminalShell.value;
 
@@ -52,10 +53,11 @@ export class MyApp extends PolymerElement {
 
             this.showToast(`Success!  Terminal '${req.name}' created.  Refreshing...`);
 
-            (this as any).$.terminalName.value = '';
-            (this as any).$.terminalImage.value = '';
-            (this as any).$.terminalPassword.value = '';
-            (this as any).$.terminalShell.value = '';
+            (this as any).$.terminalName.value = undefined;
+            (this as any).$.terminalImage.value = undefined;
+            (this as any).$.terminalPort.value = undefined;
+            (this as any).$.terminalPassword.value = undefined;
+            (this as any).$.terminalShell.value = undefined;
 
             (this as any).$.terminalName.invalid = false;
             (this as any).$.terminalImage.invalid = false;

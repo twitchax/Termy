@@ -17,7 +17,7 @@ namespace Termy.Controllers
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("3.0.0");
+            return Ok("3.1.0");
         }
 
         [HttpGet("/api/terminal")]
@@ -116,7 +116,7 @@ namespace Termy.Controllers
 
             // Create yaml for kube deployment.
             Console.WriteLine($" [{id}] Creating k8s yaml ...");
-            var terminalYamlText = Helpers.TerminalYamlTemplate.Replace("{{name}}", request.Name).Replace("{{image}}", request.Image).Replace("{{password}}", request.Password).Replace("{{shell}}", request.Shell);
+            var terminalYamlText = Helpers.TerminalYamlTemplate.Replace("{{name}}", request.Name).Replace("{{image}}", request.Image).Replace("{{password}}", request.Password).Replace("{{shell}}", request.Shell).Replace("{{port}}", request.Port.ToString());
             var terminalYamlPath = $"deployments/{request.Name}_{DateTime.Now.Ticks}.yml";
             await System.IO.File.WriteAllTextAsync(terminalYamlPath, terminalYamlText);
 
@@ -283,6 +283,7 @@ namespace Termy.Controllers
         [Required]
         public string Image { get; set; }
         
+        public int Port { get; set; } = 5443;
         public string Password { get; set; } = "null";
         public string Shell { get; set; } = "bash";
     }

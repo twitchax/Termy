@@ -18,5 +18,6 @@ declare module Bll {
         image: string;
         password: string;
         shell: string;
+        port: number;
     }
 }
