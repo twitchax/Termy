@@ -4,12 +4,13 @@ const express = require('express');
 const http = require('http');
 const https = require('https');
 const os = require('os');
+const shelljs = require('shelljs');
 const pty = require('node-pty');
-const expressWs = require('express-ws')
+const expressWs = require('express-ws');
 
 const port = process.env.PORT || 80;
 const password = process.env.PASSWORD || 'null';
-const shell = process.env.SHELL || 'bash';
+const shell = process.env.SHELL || '/bin/bash';
 
 const app = express();
 
@@ -18,7 +19,7 @@ var server;
 if(port != 80) {
     var options = {
         pfx: fs.readFileSync('/etc/secrets/cert.pfx'),
-        passphrase: fs.readFileSync('/etc/secrets/certpw', 'utf8'), 
+        passphrase: fs.readFileSync('/etc/secrets/certpw'), 
     };
     server = https.createServer(options, app);
 } else {
@@ -41,6 +42,13 @@ let validatePassword = function (req, res, next) {
     }
 };
 
+//Create guest account.
+shelljs.exec(`useradd -m -s ${shell} guest`);
+
+// change 
+
+// Define app endpoints.
+
 app.use('/xterm', express.static(path.join(__dirname, 'node_modules/xterm/dist')));
 
 app.get('/', validatePassword, function (req, res) {
@@ -56,15 +64,16 @@ app.get('/main.js', function (req, res) {
 });
 
 app.post('/terminals', validatePassword, function (req, res) {
-    var cols = parseInt(req.query.cols),
-        rows = parseInt(req.query.rows),
-        term = pty.spawn(shell, [], {
-            name: 'xterm-color',
-            cols: cols || 80,
-            rows: rows || 24,
-            cwd: process.env.PWD,
-            env: process.env
-        });
+    var rows = parseInt(req.query.rows);
+    var cols = parseInt(req.query.cols);
+    
+    var term = pty.spawn('su', ['guest'], {
+        name: 'xterm-color',
+        cols: cols || 80,
+        rows: rows || 24,
+        cwd: process.env.PWD,
+        env: process.env
+    });
 
     console.log('Created terminal with PID: ' + term.pid);
     terminals[term.pid] = term;

@@ -5,8 +5,10 @@ RUN apt-get update && apt-get install -y wget gnupg curl && curl -sL https://deb
 
 FROM builderimg as builder
 WORKDIR /builder
-COPY . .
+COPY package.json .
+COPY package-lock.json .
 RUN npm install
+COPY . .
 RUN npm rebuild
 RUN npm run pkg
 

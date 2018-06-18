@@ -40,3 +40,4 @@ spec:
       - name: termysecrets
         secret:
           secretName: termysecrets
+          defaultMode: 0400 # 0400 (YAML limitation)

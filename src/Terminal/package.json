@@ -16,7 +16,8 @@
     "express-ws": "^3.0.0",
     "node-pty": "^0.7.4",
     "xterm": "^3.3.0",
-    "gulp": "^3.9.1"
+    "gulp": "^3.9.1", 
+    "shelljs": "^0.8.2"
   },
   "scripts": {
     "pkg": "pkg . --targets node9-linux-x64"
