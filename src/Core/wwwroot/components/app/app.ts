@@ -7,6 +7,7 @@ import '@polymer/paper-item/paper-item';
 import '@polymer/paper-button/paper-button';
 import '@polymer/paper-toast/paper-toast';
 import '@polymer/paper-input/paper-input';
+import '@polymer/paper-input/paper-textarea';
 import '@polymer/paper-spinner/paper-spinner';
 
 import * as view from './app.template.html';
@@ -45,7 +46,7 @@ export class MyApp extends PolymerElement {
         req.port = (this as any).$.terminalPort.value;
         req.password = (this as any).$.terminalPassword.value;
         req.shell = (this as any).$.terminalShell.value;
-        req.command = (this as any).$.terminalShell.value;
+        req.command = (this as any).$.terminalCommand.value;
 
         this.showLoading(true);
         request({ method: 'POST', url: '/api/terminal', body: JSON.stringify(req), json:true }, (err, res, body) => {
