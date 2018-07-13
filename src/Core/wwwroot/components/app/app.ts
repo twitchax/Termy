@@ -45,6 +45,7 @@ export class MyApp extends PolymerElement {
         req.port = (this as any).$.terminalPort.value;
         req.password = (this as any).$.terminalPassword.value;
         req.shell = (this as any).$.terminalShell.value;
+        req.command = (this as any).$.terminalShell.value;
 
         this.showLoading(true);
         request({ method: 'POST', url: '/api/terminal', body: JSON.stringify(req), json:true }, (err, res, body) => {
@@ -58,6 +59,7 @@ export class MyApp extends PolymerElement {
             (this as any).$.terminalPort.value = undefined;
             (this as any).$.terminalPassword.value = undefined;
             (this as any).$.terminalShell.value = undefined;
+            (this as any).$.terminalCommand.value = undefined;
 
             (this as any).$.terminalName.invalid = false;
             (this as any).$.terminalImage.invalid = false;

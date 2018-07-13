@@ -20,7 +20,7 @@ spec:
         name: {{name}}
         imagePullPolicy: Always
         command: [ "/bin/bash", "-c", "--" ]
-        args: [ "while true; do sleep 30; done;" ]
+        args: [ "{{command}}" ]
         env:
         - name: PORT
           value: "{{port}}"

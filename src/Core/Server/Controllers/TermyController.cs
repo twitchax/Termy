@@ -121,8 +121,8 @@ namespace Termy.Controllers
                 .Replace("{{image}}", request.Image)
                 .Replace("{{password}}", request.Password)
                 .Replace("{{shell}}", request.Shell)
-                .Replace("{{port}}", request.Port
-                .ToString());
+                .Replace("{{command}}", request.Command)
+                .Replace("{{port}}", request.Port.ToString());
             var terminalYamlPath = $"deployments/{request.Name}_{DateTime.Now.Ticks}.yml";
             await System.IO.File.WriteAllTextAsync(terminalYamlPath, terminalYamlText);
 
@@ -292,6 +292,7 @@ namespace Termy.Controllers
         public int Port { get; set; } = 5443;
         public string Password { get; set; } = "null";
         public string Shell { get; set; } = "/bin/bash";
+        public string Command { get; set; } = "while true; do sleep 30; done;";
     }
 
     public class KillRequest

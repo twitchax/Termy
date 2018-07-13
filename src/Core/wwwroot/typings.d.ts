@@ -19,5 +19,6 @@ declare module Bll {
         password: string;
         shell: string;
         port: number;
+        command: string;
     }
 }
