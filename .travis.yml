@@ -1,7 +1,5 @@
 sudo: required
-language: csharp
-mono: none
-dotnet: 2.0.0
+language: generic
 dist: trusty
 
 services:
@@ -17,3 +15,5 @@ script:
 after_success:
  - echo "$DOCKER_PASS" | docker login -u $DOCKER_USER
  - docker push twitchax/termy:$TRAVIS_COMMIT
+ - docker tag twitchax/termy:$TRAVIS_COMMIT twitchax/termy
+ - docker push twitchax/termy
