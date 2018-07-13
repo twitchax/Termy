@@ -13,7 +13,7 @@ script:
  - docker build -t twitchax/termy:$TRAVIS_COMMIT .
 
 after_success:
- - echo "$DOCKER_PASS" | docker login -u $DOCKER_USER
+ - echo "$DOCKER_PASS" | docker login -u $DOCKER_USER --password-stdin
  - docker push twitchax/termy:$TRAVIS_COMMIT
  - docker tag twitchax/termy:$TRAVIS_COMMIT twitchax/termy
  - docker push twitchax/termy
