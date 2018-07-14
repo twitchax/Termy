@@ -121,7 +121,7 @@ namespace Termy.Controllers
                 .Replace("{{image}}", request.Image)
                 .Replace("{{password}}", request.Password)
                 .Replace("{{shell}}", request.Shell)
-                .Replace("{{command}}", request.Command)
+                .Replace("{{command}}", request.Command.Replace("\"", "\\\""))
                 .Replace("{{port}}", request.Port.ToString());
             var terminalYamlPath = $"deployments/{request.Name}_{DateTime.Now.Ticks}.yml";
             await System.IO.File.WriteAllTextAsync(terminalYamlPath, terminalYamlText);
