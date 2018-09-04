@@ -1,8 +1,3 @@
-declare module "*.html" {
-    const content: string;
-    export default content;
-}
-
 declare module Bll {
     interface Terminal {
         name: string;
@@ -16,9 +11,11 @@ declare module Bll {
     interface CreateTerminalRequest {
         name: string;
         image: string;
-        password: string;
-        shell: string;
-        port: number;
-        command: string;
+        password?: string;
+        shell?: string;
+        port?: number;
+        command?: string;
     }
 }
+
+declare function require(name: string): any;

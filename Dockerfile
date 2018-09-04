@@ -4,11 +4,10 @@ ARG source=.
 # Create a special builder image with build dependencies.
 FROM microsoft/dotnet as builderimg
 RUN apt-get update && apt-get install apt-transport-https
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
-RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
-RUN apt-get update && apt-get install -y yarn
-RUN curl -sL https://deb.nodesource.com/setup_9.x | bash -
+RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
 RUN apt-get install -y nodejs
+RUN npm install -g npm
+RUN npm install -g --unsafe-perm polymer-cli
 
 
 # Create a special host builder img.
@@ -34,13 +33,15 @@ RUN chmod a+x azcliinstall.py
 RUN echo -ne "\n\n" | ./azcliinstall.py
 
 
-# Run the yarn install separately since it doesn't change often.
-FROM builderimg as yarnbuilder
+# Run the npm install separately since it doesn't change often.
+FROM builderimg as packagebuilder
 ARG source
 WORKDIR /builder
 COPY ${source}/src/Core/package.json .
-COPY ${source}/src/Core/yarn.lock .
-RUN yarn install
+COPY ${source}/src/Core/package-lock.json .
+RUN npm install
+#COPY ${source}/src/Core/Termy.csproj .
+#RUN dotnet restore
 
 # Run the termy build in a builder.
 FROM builderimg as builder
@@ -48,8 +49,8 @@ ARG source
 ARG config="Release"
 WORKDIR /builder
 COPY ${source}/src/Core .
-COPY --from=yarnbuilder /builder/node_modules node_modules
-RUN if [ "${config}" = "Release" ]; then yarn build; else yarn builddebug; fi
+COPY --from=packagebuilder /builder/node_modules node_modules
+RUN if [ "${config}" = "Release" ]; then npm run build; else npm run builddebug; fi
 
 # Run the terminal host build in a builder.
 FROM hostbuilderimg as hostbuilder

@@ -1,10 +1,25 @@
 {
-  "compilerOptions": {
-    "module": "commonjs",
-    "noImplicitAny": false,
-    "rootDir": "./wwwroot/",
-    "sourceMap": true,
-    "strict": true,
-    "target": "es2015"
-  }
+    "compilerOptions": {
+        "rootDir": "Client",
+        "outDir": "buildts",
+        "target":"esnext",
+        "module":"esnext",
+        "moduleResolution": "node",
+
+        "noImplicitAny": true,
+        "experimentalDecorators": true,
+        "declaration": true,
+        "sourceMap": true,
+        "pretty": true,
+        "strict": true,
+
+        "lib": [
+            "esnext",
+            "dom"
+        ]
+    },
+
+    "include": [
+        "Client/**/*.ts"
+    ]
 }

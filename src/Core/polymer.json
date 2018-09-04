@@ -1,0 +1,21 @@
+{
+    "entrypoint": "index.html",
+    "shell": "buildts/my-app.js",
+    "sources": [
+        "buildts/**/*",
+        "package.json"
+    ],
+    "extraDependencies": [
+        "node_modules/@webcomponents/webcomponentsjs/**"
+    ],
+    "builds": [
+        {
+            "name": "default",
+            "preset": "es6-unbundled",
+            "addServiceWorker": true,
+            "addPushManifest": true
+        }
+    ],
+    "moduleResolution": "node",
+    "npm": true
+}  
