@@ -6,7 +6,9 @@
         "package.json"
     ],
     "extraDependencies": [
-        "node_modules/@webcomponents/webcomponentsjs/**"
+        "node_modules/@webcomponents/webcomponentsjs/**/*",
+        "node_modules/c3/**/*",
+        "node_modules/d3/**/*"
     ],
     "builds": [
         {

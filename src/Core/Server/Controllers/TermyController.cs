@@ -26,10 +26,10 @@ namespace Termy.Controllers
             var id = GetId();
             Console.WriteLine($" [{id}] Starting {nameof(GetTerminals)} ...");
 
-            var (terminals, error) = await RunKubeCommand(id, $"get services --namespace={Helpers.KubeNamespace}");
+            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services --namespace={Helpers.KubeNamespace}");
 
             Console.WriteLine($" [{id}] Done.");
-            return Ok(TextToJArray(terminals));
+            return Ok(Helpers.TextToJArray(terminals));
         }
 
         [HttpGet("/api/terminal/{name}")]
@@ -38,7 +38,7 @@ namespace Termy.Controllers
             var id = GetId();
             Console.WriteLine($" [{id}] Starting {nameof(GetTerminal)} ...");
 
-            var (terminals, error) = await RunKubeCommand(id, $"get services {name} --namespace={Helpers.KubeNamespace}");
+            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services {name} --namespace={Helpers.KubeNamespace}");
 
             Console.WriteLine($" [{id}] Done.");
             return Ok(terminals);
@@ -50,13 +50,13 @@ namespace Termy.Controllers
             var id = GetId();
             Console.WriteLine($" [{id}] Starting {nameof(DeleteTerminals)} ...");
 
-            await RunKubeCommand(id, $"delete deployment,service --namespace={Helpers.KubeNamespace} --all");
+            await Helpers.RunKubeCommand(id, $"delete deployment,service --namespace={Helpers.KubeNamespace} --all");
 
-            await RunAzCommand(id, Helpers.AzLoginCommand);
-            var records = (await RunAzCommand(id, $"network dns record-set list -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} --query [].name -o tsv")).Standard.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s) && s != "@");
+            await Helpers.RunAzCommand(id, Helpers.AzLoginCommand);
+            var records = (await Helpers.RunAzCommand(id, $"network dns record-set list -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} --query [].name -o tsv")).Standard.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s) && s != "@");
 
             foreach(var record in records)
-                await RunAzCommand(id, $"network dns record-set a delete -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {record} -y");
+                await Helpers.RunAzCommand(id, $"network dns record-set a delete -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {record} -y");
 
             Console.WriteLine($" [{id}] Done.");
             return Ok();
@@ -68,10 +68,10 @@ namespace Termy.Controllers
             var id = GetId();
             Console.WriteLine($" [{id}] Starting {nameof(DeleteTerminal)} ...");
 
-            await RunKubeCommand(id, $"delete deployment,service {name} --namespace={Helpers.KubeNamespace}");
+            await Helpers.RunKubeCommand(id, $"delete deployment,service {name} --namespace={Helpers.KubeNamespace}");
 
-            await RunAzCommand(id, Helpers.AzLoginCommand);
-            await RunAzCommand(id, $"network dns record-set a delete -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {name} -y");
+            await Helpers.RunAzCommand(id, Helpers.AzLoginCommand);
+            await Helpers.RunAzCommand(id, $"network dns record-set a delete -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {name} -y");
 
             Console.WriteLine($" [{id}] Done.");
             return Ok();
@@ -100,7 +100,7 @@ namespace Termy.Controllers
                 Console.WriteLine($" [{id}] Failed: bad name.");
                 return this.BadRequest("The name must match: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'.");
             }
-            var existing = (await RunKubeCommand(id, $"describe services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard;
+            var existing = (await Helpers.RunKubeCommand(id, $"describe services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard;
             if(!string.IsNullOrWhiteSpace(existing))
             {
                 Console.WriteLine($" [{id}] Failed: terminal name already exists.");
@@ -109,7 +109,7 @@ namespace Termy.Controllers
             
             // Ensure namespace exists.
             Console.WriteLine($" [{id}] Ensuring k8s namespace ({Helpers.KubeNamespace}) ...");
-            await RunKubeCommand(id, $"create namespace {Helpers.KubeNamespace}");
+            await Helpers.RunKubeCommand(id, $"create namespace {Helpers.KubeNamespace}");
 
             // Ensure deployments directory exists.
             Directory.CreateDirectory("deployments");
@@ -128,42 +128,54 @@ namespace Termy.Controllers
 
             // Create deployment.
             Console.WriteLine($" [{id}] Creating k8s deployment ...");
-            await RunKubeCommand(id, $"create -f {terminalYamlPath}");
+            await Helpers.RunKubeCommand(id, $"create -f {terminalYamlPath}");
             await RetryUntil(id, "deployment", async () => {
-                var deployments = TextToJArray((await RunKubeCommand(id, $"get deploy/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard);
+                var deployments = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get deploy/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard);
 
                 return deployments?.FirstOrDefault()?.Value<string>("available");
             }, val => val != "0");
-            var podName = TextToJArray((await RunKubeCommand(id, $"get pods -l=run={request.Name} --namespace={Helpers.KubeNamespace}")).Standard).FirstOrDefault().Value<string>("name");
+            var podName = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get pods -l=run={request.Name} --namespace={Helpers.KubeNamespace}")).Standard).FirstOrDefault().Value<string>("name");
             Console.WriteLine($" [{id}] Pod name is `{podName}`.");
 
             // Copy terminal host files to pod.
             Console.WriteLine($" [{id}] Copying host files to pod ...");
-            await RunKubeCommand(id, $"cp {Helpers.TerminalHostServerFile} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostServerFile}");
-            await RunKubeCommand(id, $"cp {Helpers.TerminalHostPuttyFile} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostPuttyFile}");
-            await RunKubeCommand(id, $"cp {Helpers.TerminalHostStartScript} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostStartScript}");
+            await Helpers.RunKubeCommand(id, $"cp {Helpers.TerminalHostServerFile} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostServerFile}");
+            await Helpers.RunKubeCommand(id, $"cp {Helpers.TerminalHostPuttyFile} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostPuttyFile}");
+            await Helpers.RunKubeCommand(id, $"cp {Helpers.TerminalHostStartScript} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostStartScript}");
 
             // Exec the server on the pod.
             Console.WriteLine($" [{id}] Starting pty server on pod ...");
-            await RunKubeCommand(id, $"exec {podName} -i --namespace={Helpers.KubeNamespace} /start-host.sh");
+            await Helpers.RunKubeCommand(id, $"exec {podName} -i --namespace={Helpers.KubeNamespace} /start-host.sh");
 
             // Expose a load balancer to get a public IP.
             Console.WriteLine($" [{id}] Exposing k8s service for deployment ...");
-            await RunKubeCommand(id, $"expose deployment {request.Name} --type=LoadBalancer --name={request.Name} --namespace={Helpers.KubeNamespace}");
+            await Helpers.RunKubeCommand(id, $"expose deployment {request.Name} --type=LoadBalancer --name={request.Name} --namespace={Helpers.KubeNamespace}");
             var ip = await RetryUntil(id, "IP", async () => {
-                var (val, _) = await RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace} -o=jsonpath='{{.status.loadBalancer.ingress[].ip}}'");
+                var (val, _) = await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace} -o=jsonpath='{{.status.loadBalancer.ingress[].ip}}'");
 
                 return val;
             }, val => val != "''");
 
             // Provision the DNS record in Azure.
             Console.WriteLine($" [{id}] Provisioning DNS record ...");
-            await RunAzCommand(id, Helpers.AzLoginCommand);
-            await RunAzCommand(id, $"network dns record-set a add-record -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {request.Name} -a {ip.Replace("\'", "")}");
+            await Helpers.RunAzCommand(id, Helpers.AzLoginCommand);
+            await Helpers.RunAzCommand(id, $"network dns record-set a add-record -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {request.Name} -a {ip.Replace("\'", "")}");
             
             // Finalize.
             Console.WriteLine($" [{id}] Done.");
-            return Ok((await RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard + "\n" + $"{request.Name}.{Helpers.AzDnsZone}");
+            return Ok((await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard + "\n" + $"{request.Name}.{Helpers.AzDnsZone}");
+        }
+
+        [HttpGet("/api/node/stats")]
+        public async Task<IActionResult> GetNodeStats()
+        {
+            var id = GetId();
+            Console.WriteLine($" [{id}] Starting {nameof(GetNodeStats)} ...");
+
+            var nodeStats = ActivityWorker.NodeStats;
+
+            Console.WriteLine($" [{id}] Done.");
+            return Ok(nodeStats);
         }
 
         [HttpPost("/api/kill")]
@@ -208,78 +220,6 @@ namespace Termy.Controllers
         }
 
         private string GetId() => new string(Guid.NewGuid().ToString().Take(6).ToArray());
-
-        private Task<(string Standard, string Error)> RunKubeCommand(string id, string args)
-        {
-            return RunCommand(id, "kubectl", $"{args} --kubeconfig={Helpers.KubeConfig}");
-        }
-
-        private Task<(string Standard, string Error)> RunDockerCommand(string id, string args)
-        {
-            return RunCommand(id, "docker", args);
-        }
-
-        private Task<(string Standard, string Error)> RunAzCommand(string id, string args)
-        {
-            return RunCommand(id, "/root/bin/az", args);
-        }
-
-        private Task<(string Standard, string Error)> RunCommand(string id, string command, string args)
-        {
-            var t = new Task<(string Standard, string Error)>(() => 
-            {
-                Process process = new Process(); 
-                process.StartInfo.FileName = command;
-                process.StartInfo.Arguments = args;
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                var a = process.Start();
-                process.WaitForExit();
-
-                var standard = process.StandardOutput.ReadToEnd();
-                var error = process.StandardError.ReadToEnd();
-
-                //Console.WriteLine($" [{id}] [{command}] {standard}");
-                if(!string.IsNullOrEmpty(error))
-                    Console.WriteLine($" [{id}] [{command}] [ERROR] {error}");
-
-                return (standard, error);
-            });
-            t.Start();
-
-            return t;
-        }
-
-        private JArray TextToJArray(string text)
-        {
-            var lines = text
-                .Split('\n')
-                .Where(s => !string.IsNullOrWhiteSpace(s))
-                .Select(line => line
-                    .Split("  ")
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .Select(s => s.Trim().ToLower())
-                    .ToList())
-                .ToList();
-
-            var props = lines.FirstOrDefault()?.Select(p => p.Replace("-", "").Replace("(", "").Replace(")", "").Replace(" ", "")).ToList();
-            var valueLines = lines.Count > 1 ? lines.Skip(1).ToList() : new List<List<string>>();
-
-            var list = new JArray();
-            foreach(var valueLine in valueLines)
-            {
-                var obj = new JObject();
-
-                for(int k = 0; k < props.Count; k++)
-                {
-                    obj.Add(props[k], valueLine[k]);
-                }
-
-                list.Add(obj);
-            }
-            
-            return list;
-        }
     }
 
     public class CreateTerminalRequest

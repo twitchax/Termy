@@ -16,6 +16,15 @@ declare module Bll {
         port?: number;
         command?: string;
     }
+
+    interface NodeStat {
+        name: string;
+        cpuCores: number;
+        cpuPercent: number;
+        memoryBytes: number;
+        memoryPercent: number;
+        time: string;
+    }
 }
 
 declare function require(name: string): any;

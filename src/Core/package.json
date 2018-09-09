@@ -11,6 +11,7 @@
     "builddebug": "tsc && polymer build && dotnet publish -c Debug"
   },
   "dependencies": {
+    "@granite-elements/granite-c3": "3.2.0",
     "@polymer/decorators": "3.0.0",
     "@polymer/iron-list": "3.0.0-pre.25",
     "@polymer/paper-button": "3.0.0-pre.25",
@@ -20,7 +21,8 @@
     "@polymer/paper-spinner": "3.0.0-pre.25",
     "@polymer/paper-toast": "3.0.0-pre.25",
     "@polymer/polymer": "3.0.5",
-    "@webcomponents/webcomponentsjs": "2.1.1"
+    "@webcomponents/webcomponentsjs": "2.1.1",
+    "c3": "0.6.7"
   },
   "devDependencies": {
     "typescript": "3.0.3",

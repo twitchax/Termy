@@ -17,6 +17,7 @@ namespace Termy
     {
         public static void Main(string[] args)
         {
+            ActivityWorker.Start();
             BuildWebHost(args).Run();
         }
 

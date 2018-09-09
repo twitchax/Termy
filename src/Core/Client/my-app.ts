@@ -6,6 +6,7 @@ import '@polymer/paper-toast/paper-toast';
 import '@polymer/paper-input/paper-input';
 import '@polymer/paper-input/paper-textarea';
 import '@polymer/paper-spinner/paper-spinner';
+import '@granite-elements/granite-c3';
 
 import { PolymerElement, html } from '@polymer/polymer/polymer-element';
 import { customElement, property, query } from "@polymer/decorators";
@@ -41,16 +42,47 @@ export class MyApp extends PolymerElement {
     @query('#toast')
     toast!: PaperToastElement;
 
+    nodeCpuPercentData: any;
+    nodeMemoryPercentData: any;
+    chartAxis: any;
+
     ready() {
         super.ready();
         this.setup();
     }
 
     private setup() {
+        // Get the list of running terminals.
         this.showLoading(true);
         request<Bll.Terminal[]>({ url: '/api/terminal' }).then(data => {
             this.terminals = data;
         }).catch(this.handleError.bind(this)).finally(this.showLoading.bind(this, false));
+        
+        // Start a timer to constantly get node statistics.
+        this.updateNodeStats();
+        setInterval(this.updateNodeStats.bind(this), 10000);
+    }
+
+    private updateNodeStats() {
+        request<{ [name: string]: Bll.NodeStat[]; }>({ url: '/api/node/stats' }).then(nodes => {
+            let cpuPercentColumns: (string | number)[][] = [];
+            let memoryPercentColumns: (string | number)[][] = [];
+            let xs = nodes[Object.keys(nodes)[0]].map(n => n.time);
+
+            //columns.push(['x', xs].flat());
+
+            for(var key in nodes) {
+                cpuPercentColumns.push([key, nodes[key].map(s => s.cpuPercent)].flat());
+                memoryPercentColumns.push([key, nodes[key].map(s => s.memoryPercent)].flat());
+            }
+
+            this.nodeCpuPercentData = {
+                columns: cpuPercentColumns
+            };
+            this.nodeMemoryPercentData = {
+                columns: memoryPercentColumns
+            };
+        });
     }
 
     private createTerminal() {
@@ -149,8 +181,9 @@ export class MyApp extends PolymerElement {
 
             <paper-spinner id="loading" style="position: absolute; left: 50vw; top: 50vh;"></paper-spinner>
 
-            <div id="main" style="display: flex; flex-direction: row; align-items: flex-start;">
-                <paper-card>
+            <div id="main" style="display: flex; flex-direction: row; align-items: flex-start; flex-wrap: wrap;">
+                <!-- Left pane -->
+                <paper-card style="max-width: 400px;">
                     <h1>Create Terminal</h1>
 
                     <paper-input id="terminalName" label="Name" required auto-validate error-message="Required."></paper-input>
@@ -166,49 +199,66 @@ export class MyApp extends PolymerElement {
                     <paper-button on-tap="createTerminal" raised>Create</paper-button>
                 </paper-card>
 
-                <paper-card>
-                    <h1>Terminals</h1>
+                <!-- Center pane. -->
+                <div style="display: flex; flex-direction: column; overflow: scroll; height: 100%;">
+                    <paper-card>
+                        <h1>Terminals</h1>
 
-                    <br />
+                        <br />
 
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>URL</th>
-                                <th>IP</th>
-                                <th>Ports</th>
-                                <th>Delete?</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template is="dom-repeat" items="[[terminals]]" as="terminal">
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td>[[terminal.name]]</td>
-                                    <td>
-                                        <a href="https://[[terminal.name]].box.termy.in:5443/">https://[[terminal.name]].box.termy.in:5443/</a>
-                                    </td>
-                                    <td>[[terminal.externalip]]</td>
-                                    <td>[[terminal.ports]]</td>
-                                    <td>
-                                        <paper-button data-name$="[[terminal.name]]" on-tap="deleteTerminal" raised>Delete</paper-button>
-                                    </td>
+                                    <th>Name</th>
+                                    <th>URL</th>
+                                    <th>IP</th>
+                                    <th>Ports</th>
+                                    <th>Delete?</th>
                                 </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <template is="dom-repeat" items="[[terminals]]" as="terminal">
+                                    <tr>
+                                        <td>[[terminal.name]]</td>
+                                        <td>
+                                            <a href="https://[[terminal.name]].box.termy.in:5443/">https://[[terminal.name]].box.termy.in:5443/</a>
+                                        </td>
+                                        <td>[[terminal.externalip]]</td>
+                                        <td>[[terminal.ports]]</td>
+                                        <td>
+                                            <paper-button data-name$="[[terminal.name]]" on-tap="deleteTerminal" raised>Delete</paper-button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
 
-                    <br />
-                    <br />
+                        <br />
+                        <br />
 
-                    <paper-button on-tap="deleteTerminals" raised>Delete All</paper-button>
-                </paper-card>
+                        <paper-button on-tap="deleteTerminals" raised>Delete All</paper-button>
+                    </paper-card>
+
+                    <paper-card>
+                        <h1>Node Statistics (2 hours)</h1>
+
+                        <h3>CPU Percentage</h3>
+                        <granite-c3 data="[[nodeCpuPercentData]]" point='{ "show": false }'></granite-c3>
+
+                        <h3>Memory Percentage</h3>
+                        <granite-c3 data="[[nodeMemoryPercentData]]" point='{ "show": false }'></granite-c3>
+                    </paper-card>
+                </div>
             </div>
 
             <style>
                 paper-card {
                     padding: 20px;
                     margin: 10px;
+                }
+
+                granite-c3 {
+                    width: 100%;
                 }
 
                 .blur {
