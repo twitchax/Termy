@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -14,26 +15,11 @@ namespace Termy
 {
     public static class Helpers
     {
-        public static readonly string CertFile = "/etc/secrets/cert.pfx";
-        public static readonly string CertPassword = File.ReadAllText("/etc/secrets/certpw");
-
-        public static readonly string KubeConfig = "\"/etc/secrets/kubeconfig\"";
-        public static readonly string KubeNamespace = "\"terminals\"";
-
-        public static readonly string AzLoginCommand = File.ReadAllText("/etc/secrets/azlogin");
-        public static readonly string AzDnsZone = "box.termy.in";
-        public static readonly string AzGroup = "Termy";
-
-        public static readonly string AdminPassword = File.ReadAllText("/etc/secrets/adminpw");
-
-        public static readonly string TerminalYamlTemplate = File.ReadAllText("terminal.yml");
-        public static readonly string TerminalHostServerFile = "termy-terminal-host";
-        public static readonly string TerminalHostPuttyFile = "pty.node";
-        public static readonly string TerminalHostStartScript = "start-host.sh";
+        public static void Log(string id, string message) => Console.WriteLine($" [{id}] {message}");
 
         public static Task<(string Standard, string Error)> RunKubeCommand(string id, string args)
         {
-            return RunCommand(id, "kubectl", $"{args} --kubeconfig={Helpers.KubeConfig}");
+            return RunCommand(id, "kubectl", $"{args} --kubeconfig={Settings.KubeConfig}");
         }
 
         public static Task<(string Standard, string Error)> RunDockerCommand(string id, string args)
@@ -61,9 +47,9 @@ namespace Termy
                 var standard = process.StandardOutput.ReadToEnd();
                 var error = process.StandardError.ReadToEnd();
 
-                //Console.WriteLine($" [{id}] [{command}] {standard}");
+                //Helpers.Log(id, $"[{command}] {standard}");
                 if(!string.IsNullOrEmpty(error))
-                    Console.WriteLine($" [{id}] [{command}] [ERROR] {error}");
+                    Helpers.Log(id, $"[{command}] [ERROR] {error}");
 
                 return (standard, error);
             });

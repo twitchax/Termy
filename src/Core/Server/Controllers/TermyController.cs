@@ -12,23 +12,23 @@ using Newtonsoft.Json.Linq;
 
 namespace Termy.Controllers
 {
-    public class TermyController : Controller
+    public class TermyController : BaseController
     {
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("3.1.0");
+            return Ok("3.2.0");
         }
 
         [HttpGet("/api/terminal")]
         public async Task<IActionResult> GetTerminals()
         {
             var id = GetId();
-            Console.WriteLine($" [{id}] Starting {nameof(GetTerminals)} ...");
+            Helpers.Log(id, $"Starting {nameof(GetTerminals)} ...");
 
-            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services --namespace={Helpers.KubeNamespace}");
+            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services --namespace={Settings.KubeNamespace}");
 
-            Console.WriteLine($" [{id}] Done.");
+            Helpers.Log(id, $"Done.");
             return Ok(Helpers.TextToJArray(terminals));
         }
 
@@ -36,59 +36,68 @@ namespace Termy.Controllers
         public async Task<IActionResult> GetTerminal(string name)
         {
             var id = GetId();
-            Console.WriteLine($" [{id}] Starting {nameof(GetTerminal)} ...");
+            Helpers.Log(id, $"Starting {nameof(GetTerminal)} ...");
 
-            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services {name} --namespace={Helpers.KubeNamespace}");
+            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services {name} --namespace={Settings.KubeNamespace}");
 
-            Console.WriteLine($" [{id}] Done.");
+            Helpers.Log(id, $"Done.");
             return Ok(terminals);
         }
 
         [HttpDelete("/api/terminal")]
         public async Task<IActionResult> DeleteTerminals()
         {
+            if(!this.IsSuperUser)
+                return Unauthorized();
+            
             var id = GetId();
-            Console.WriteLine($" [{id}] Starting {nameof(DeleteTerminals)} ...");
+            Helpers.Log(id, $"Starting {nameof(DeleteTerminals)} ...");
 
-            await Helpers.RunKubeCommand(id, $"delete deployment,service --namespace={Helpers.KubeNamespace} --all");
+            await Helpers.RunKubeCommand(id, $"delete deployment,service --namespace={Settings.KubeNamespace} --all");
 
-            await Helpers.RunAzCommand(id, Helpers.AzLoginCommand);
-            var records = (await Helpers.RunAzCommand(id, $"network dns record-set list -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} --query [].name -o tsv")).Standard.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s) && s != "@");
+            await Helpers.RunAzCommand(id, Settings.AzLoginCommand);
+            var records = (await Helpers.RunAzCommand(id, $"network dns record-set list -z {Settings.AzDnsZone} -g {Settings.AzGroup} --query [].name -o tsv")).Standard.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s) && s != "@");
 
             foreach(var record in records)
-                await Helpers.RunAzCommand(id, $"network dns record-set a delete -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {record} -y");
+                await Helpers.RunAzCommand(id, $"network dns record-set a delete -z {Settings.AzDnsZone} -g {Settings.AzGroup} -n {record} -y");
 
-            Console.WriteLine($" [{id}] Done.");
+            Helpers.Log(id, $"Done.");
             return Ok();
         }
 
         [HttpDelete("/api/terminal/{name}")]
         public async Task<IActionResult> DeleteTerminal(string name)
         {
+            if(!this.IsSuperUser)
+                return Unauthorized();
+            
             var id = GetId();
-            Console.WriteLine($" [{id}] Starting {nameof(DeleteTerminal)} ...");
+            Helpers.Log(id, $"Starting {nameof(DeleteTerminal)} ...");
 
-            await Helpers.RunKubeCommand(id, $"delete deployment,service {name} --namespace={Helpers.KubeNamespace}");
+            await Helpers.RunKubeCommand(id, $"delete deployment,service {name} --namespace={Settings.KubeNamespace}");
 
-            await Helpers.RunAzCommand(id, Helpers.AzLoginCommand);
-            await Helpers.RunAzCommand(id, $"network dns record-set a delete -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {name} -y");
+            await Helpers.RunAzCommand(id, Settings.AzLoginCommand);
+            await Helpers.RunAzCommand(id, $"network dns record-set a delete -z {Settings.AzDnsZone} -g {Settings.AzGroup} -n {name} -y");
 
-            Console.WriteLine($" [{id}] Done.");
+            Helpers.Log(id, $"Done.");
             return Ok();
         }
 
         [HttpPost("/api/terminal")]
         public async Task<IActionResult> CreateTerminal([FromBody]CreateTerminalRequest request)
         {
+            if(!this.IsSuperUser)
+                return Unauthorized();
+            
             var id = GetId();
 
-            Console.WriteLine($" [{id}] Starting {nameof(CreateTerminal)} ...");
+            Helpers.Log(id, $"Starting {nameof(CreateTerminal)} ...");
 
-            Console.WriteLine($"    [{id}] Name:  {request.Name} ...");
-            Console.WriteLine($"    [{id}] Image: {request.Image} ...");
-            Console.WriteLine($"    [{id}] Shell: {request.Shell} ...");
+            Helpers.Log(id, $"   Name:  {request.Name} ...");
+            Helpers.Log(id, $"   Image: {request.Image} ...");
+            Helpers.Log(id, $"   Shell: {request.Shell} ...");
 
-            Console.WriteLine($" [{id}] Validating ...");
+            Helpers.Log(id, $"Validating ...");
 
             if(!ModelState.IsValid)
             {
@@ -97,29 +106,30 @@ namespace Termy.Controllers
             }
             if(!new Regex("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$").IsMatch(request.Name))
             {
-                Console.WriteLine($" [{id}] Failed: bad name.");
+                Helpers.Log(id, $"Failed: bad name.");
                 return this.BadRequest("The name must match: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'.");
             }
-            var existing = (await Helpers.RunKubeCommand(id, $"describe services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard;
+            var existing = (await Helpers.RunKubeCommand(id, $"describe services/{request.Name} --namespace={Settings.KubeNamespace}")).Standard;
             if(!string.IsNullOrWhiteSpace(existing))
             {
-                Console.WriteLine($" [{id}] Failed: terminal name already exists.");
+                Helpers.Log(id, $"Failed: terminal name already exists.");
                 return this.BadRequest("A terminal with this name already exists.");
             }
             
             // Ensure namespace exists.
-            Console.WriteLine($" [{id}] Ensuring k8s namespace ({Helpers.KubeNamespace}) ...");
-            await Helpers.RunKubeCommand(id, $"create namespace {Helpers.KubeNamespace}");
+            Helpers.Log(id, $"Ensuring k8s namespace ({Settings.KubeNamespace}) ...");
+            await Helpers.RunKubeCommand(id, $"create namespace {Settings.KubeNamespace}");
 
             // Ensure deployments directory exists.
             Directory.CreateDirectory("deployments");
 
             // Create yaml for kube deployment.
-            Console.WriteLine($" [{id}] Creating k8s yaml ...");
-            var terminalYamlText = Helpers.TerminalYamlTemplate
+            Helpers.Log(id, $"Creating k8s yaml ...");
+            var terminalYamlText = Settings.TerminalYamlTemplate
                 .Replace("{{name}}", request.Name)
                 .Replace("{{image}}", request.Image)
                 .Replace("{{password}}", request.Password)
+                .Replace("{{su}}", Settings.SuperUserPassword)
                 .Replace("{{shell}}", request.Shell)
                 .Replace("{{command}}", request.Command.Replace("\"", "\\\""))
                 .Replace("{{port}}", request.Port.ToString());
@@ -127,61 +137,61 @@ namespace Termy.Controllers
             await System.IO.File.WriteAllTextAsync(terminalYamlPath, terminalYamlText);
 
             // Create deployment.
-            Console.WriteLine($" [{id}] Creating k8s deployment ...");
+            Helpers.Log(id, $"Creating k8s deployment ...");
             await Helpers.RunKubeCommand(id, $"create -f {terminalYamlPath}");
             await RetryUntil(id, "deployment", async () => {
-                var deployments = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get deploy/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard);
+                var deployments = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get deploy/{request.Name} --namespace={Settings.KubeNamespace}")).Standard);
 
                 return deployments?.FirstOrDefault()?.Value<string>("available");
             }, val => val != "0");
-            var podName = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get pods -l=run={request.Name} --namespace={Helpers.KubeNamespace}")).Standard).FirstOrDefault().Value<string>("name");
-            Console.WriteLine($" [{id}] Pod name is `{podName}`.");
+            var podName = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get pods -l=run={request.Name} --namespace={Settings.KubeNamespace}")).Standard).FirstOrDefault().Value<string>("name");
+            Helpers.Log(id, $"Pod name is `{podName}`.");
 
             // Copy terminal host files to pod.
-            Console.WriteLine($" [{id}] Copying host files to pod ...");
-            await Helpers.RunKubeCommand(id, $"cp {Helpers.TerminalHostServerFile} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostServerFile}");
-            await Helpers.RunKubeCommand(id, $"cp {Helpers.TerminalHostPuttyFile} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostPuttyFile}");
-            await Helpers.RunKubeCommand(id, $"cp {Helpers.TerminalHostStartScript} {Helpers.KubeNamespace}/{podName}:/{Helpers.TerminalHostStartScript}");
+            Helpers.Log(id, $"Copying host files to pod ...");
+            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostServerFile} {Settings.KubeNamespace}/{podName}:/{Settings.TerminalHostServerFile}");
+            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostPuttyFile} {Settings.KubeNamespace}/{podName}:/{Settings.TerminalHostPuttyFile}");
+            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostStartScript} {Settings.KubeNamespace}/{podName}:/{Settings.TerminalHostStartScript}");
 
             // Exec the server on the pod.
-            Console.WriteLine($" [{id}] Starting pty server on pod ...");
-            await Helpers.RunKubeCommand(id, $"exec {podName} -i --namespace={Helpers.KubeNamespace} /start-host.sh");
+            Helpers.Log(id, $"Starting pty server on pod ...");
+            await Helpers.RunKubeCommand(id, $"exec {podName} -i --namespace={Settings.KubeNamespace} /start-host.sh");
 
             // Expose a load balancer to get a public IP.
-            Console.WriteLine($" [{id}] Exposing k8s service for deployment ...");
-            await Helpers.RunKubeCommand(id, $"expose deployment {request.Name} --type=LoadBalancer --name={request.Name} --namespace={Helpers.KubeNamespace}");
+            Helpers.Log(id, $"Exposing k8s service for deployment ...");
+            await Helpers.RunKubeCommand(id, $"expose deployment {request.Name} --type=LoadBalancer --name={request.Name} --namespace={Settings.KubeNamespace}");
             var ip = await RetryUntil(id, "IP", async () => {
-                var (val, _) = await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace} -o=jsonpath='{{.status.loadBalancer.ingress[].ip}}'");
+                var (val, _) = await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Settings.KubeNamespace} -o=jsonpath='{{.status.loadBalancer.ingress[].ip}}'");
 
                 return val;
             }, val => val != "''");
 
             // Provision the DNS record in Azure.
-            Console.WriteLine($" [{id}] Provisioning DNS record ...");
-            await Helpers.RunAzCommand(id, Helpers.AzLoginCommand);
-            await Helpers.RunAzCommand(id, $"network dns record-set a add-record -z {Helpers.AzDnsZone} -g {Helpers.AzGroup} -n {request.Name} -a {ip.Replace("\'", "")}");
+            Helpers.Log(id, $"Provisioning DNS record ...");
+            await Helpers.RunAzCommand(id, Settings.AzLoginCommand);
+            await Helpers.RunAzCommand(id, $"network dns record-set a add-record -z {Settings.AzDnsZone} -g {Settings.AzGroup} -n {request.Name} -a {ip.Replace("\'", "")}");
             
             // Finalize.
-            Console.WriteLine($" [{id}] Done.");
-            return Ok((await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Helpers.KubeNamespace}")).Standard + "\n" + $"{request.Name}.{Helpers.AzDnsZone}");
+            Helpers.Log(id, $"Done.");
+            return Ok((await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Settings.KubeNamespace}")).Standard + "\n" + $"{request.Name}.{Settings.AzDnsZone}");
         }
 
         [HttpGet("/api/node/stats")]
         public async Task<IActionResult> GetNodeStats()
         {
             var id = GetId();
-            Console.WriteLine($" [{id}] Starting {nameof(GetNodeStats)} ...");
+            Helpers.Log(id, $"Starting {nameof(GetNodeStats)} ...");
 
             var nodeStats = ActivityWorker.NodeStats;
 
-            Console.WriteLine($" [{id}] Done.");
+            Helpers.Log(id, $"Done.");
             return Ok(nodeStats);
         }
 
         [HttpPost("/api/kill")]
         public IActionResult KillTerminal([FromBody]KillRequest request)
         {
-            if(request.AdminPassword == Helpers.AdminPassword)
+            if(this.IsSuperUser)
             {
                 Environment.FailFast("Kill requested: tearing down pod.");
                 return Ok();
@@ -197,7 +207,7 @@ namespace Termy.Controllers
 
             do
             {
-                Console.WriteLine($" [{id}] Trying to get `{name}`: {result} ...");
+                Helpers.Log(id, $"Trying to get `{name}`: {result} ...");
 
                 try
                 {
@@ -211,11 +221,11 @@ namespace Termy.Controllers
 
             if(tryCount >= maxRetry)
             {
-                Console.WriteLine($" [{id}] Retry timed out for `{name}`.");
+                Helpers.Log(id, $"Retry timed out for `{name}`.");
                 throw new Exception($"Hit the max number of retries while trying to get `{name}`.");
             }
 
-            Console.WriteLine($" [{id}] Got `{name}`: {result}.");
+            Helpers.Log(id, $"Got `{name}`: {result}.");
             return result;
         }
 

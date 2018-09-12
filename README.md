@@ -13,7 +13,7 @@ docker build -t twitchax/termy .
 ```
 
 The Kube cluster must define a few secrets called `termysecrets` (look at `./tools/createSecrets.sh`):
-* `adminpw`: a file that defines a password for the super user (allows killing the pod, etc.).
+* `supw`: a file that defines a password for the super user (allows killing the pod, etc.).
 * `azlogin`: a file with an Azure service principal with access to a DNS host which takes the form `login --service-principal -u <guid> -p <passphrase> --tenant <guid>`.
 * `cert.pfx`: the SSL cert.
 * `certpw`: the SSL cert passphrase.

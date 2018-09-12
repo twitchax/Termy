@@ -32,7 +32,7 @@ namespace Termy
                     {
                         listenOptions.UseHttps(new HttpsConnectionAdapterOptions
                         {
-                            ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(Helpers.CertFile, Helpers.CertPassword), 
+                            ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(Settings.CertFile, Settings.CertPassword), 
                             SslProtocols = SslProtocols.Tls12
                         });
                     });

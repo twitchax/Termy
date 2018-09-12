@@ -20,7 +20,7 @@ spec:
         name: {{name}}
         imagePullPolicy: Always
         command: [ "/bin/bash", "-c", "--" ]
-        args: [ "{{command}}" ]
+        args: [ "echo 'root:{{su}}' | chpasswd; {{command}}" ]
         env:
         - name: PORT
           value: "{{port}}"

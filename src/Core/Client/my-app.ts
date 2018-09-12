@@ -15,7 +15,7 @@ import { PaperTextareaElement } from '@polymer/paper-input/paper-textarea';
 import { PaperToastElement } from '@polymer/paper-toast/paper-toast';
 import { PaperSpinnerElement } from '@polymer/paper-spinner/paper-spinner';
 
-import { request } from './helpers';
+import { request, Request } from './helpers';
 
 @customElement('my-app')
 export class MyApp extends PolymerElement {
@@ -41,14 +41,23 @@ export class MyApp extends PolymerElement {
     terminalCommand!: PaperTextareaElement;
     @query('#toast')
     toast!: PaperToastElement;
+    @query('#su')
+    su!: PaperInputElement;
 
     nodeCpuPercentData: any;
     nodeMemoryPercentData: any;
     chartAxis: any;
 
+    firstRun: boolean = true;
+
     ready() {
         super.ready();
+
         this.setup();
+
+        // Start a timer to constantly get node statistics.
+        this.updateNodeStats();
+        setInterval(this.updateNodeStats.bind(this), 10000);
     }
 
     private setup() {
@@ -57,10 +66,6 @@ export class MyApp extends PolymerElement {
         request<Bll.Terminal[]>({ url: '/api/terminal' }).then(data => {
             this.terminals = data;
         }).catch(this.handleError.bind(this)).finally(this.showLoading.bind(this, false));
-        
-        // Start a timer to constantly get node statistics.
-        this.updateNodeStats();
-        setInterval(this.updateNodeStats.bind(this), 10000);
     }
 
     private updateNodeStats() {
@@ -86,40 +91,46 @@ export class MyApp extends PolymerElement {
     }
 
     private createTerminal() {
-        this.showLoading(true);
-
         let req = this.createTerminalRequestObject;
-        console.log(req);
-
-        request({ url: '/api/terminal', method: 'POST', body: req }).then(() => {
+        
+        this.showLoading(true);
+        this.suRequest({ url: '/api/terminal', method: 'POST', body: req }).then(() => {
             this.showToast(`Success!  Terminal '${req.name}' created.  Refreshing...`);
             this.clearCreateTerminalValues();
-            this.setup();
-        }).catch(this.handleError.bind(this)).finally(this.showLoading.bind(this, false));
+        }).catch(this.handleError.bind(this)).finally(this.setup.bind(this));
     }
 
     private deleteTerminal(e: any | MouseEvent) {
         var terminalName = e.target.dataset['name'];
 
         this.showLoading(true);
-        request({ url: `/api/terminal/${terminalName}/`, method: 'DELETE' }).then(() => {
-            this.showToast(`Success!  Terminal '${terminalName}' deleted.  Refreshing...`);
-            this.setup();
-        }).catch(this.handleError.bind(this)).finally(this.showLoading.bind(this, false));
+        this.suRequest({ url: `/api/terminal/${terminalName}/`, method: 'DELETE' })
+            .then(this.showToast.bind(this, `Success!  Terminal '${terminalName}' deleted.  Refreshing...`))
+            .catch(this.handleError.bind(this))
+            .finally(this.setup.bind(this));
     }
 
     private deleteTerminals() {
         this.showLoading(true);
-        request({ url: '/api/terminal', method: 'DELETE' }).then(res => {
-            this.showToast(`Success!  Terminals deleted.  Refreshing...`);
-            this.setup();
-        }).catch(this.handleError.bind(this)).finally(this.showLoading.bind(this, false));
+        this.suRequest({ url: '/api/terminal', method: 'DELETE' })
+            .then(this.showToast.bind(this, `Success!  Terminals deleted.  Refreshing...`))
+            .catch(this.handleError.bind(this))
+            .finally(this.setup.bind(this));
     }
 
     private handleError(err: any): void {
         if(err) {
             this.showToast(err);
         }
+    }
+
+    private suRequest<T>(obj: Request): Promise<T> {
+        if(obj.headers === undefined)
+            obj.headers = {};
+
+        obj.headers["X-Super-User-Password"] = this.su.value;
+
+        return request(obj);
     }
 
     private get createTerminalRequestObject() {
@@ -181,6 +192,8 @@ export class MyApp extends PolymerElement {
 
             <paper-spinner id="loading" style="position: absolute; left: 50vw; top: 50vh;"></paper-spinner>
 
+            <paper-input id="su" type="password" label="Super User Password" style="position: fixed; top: 10px; right: 10px;"></paper-input>
+
             <div id="main" style="display: flex; flex-direction: row; align-items: flex-start; flex-wrap: wrap;">
                 <!-- Left pane -->
                 <paper-card style="max-width: 400px;">
@@ -200,7 +213,7 @@ export class MyApp extends PolymerElement {
                 </paper-card>
 
                 <!-- Center pane. -->
-                <div style="display: flex; flex-direction: column; overflow: scroll; height: 100%;">
+                <div style="display: flex; flex-direction: column; overflow: scroll; height: 100vh;">
                     <paper-card>
                         <h1>Terminals</h1>
 
@@ -243,10 +256,10 @@ export class MyApp extends PolymerElement {
                         <h1>Node Statistics (2 hours)</h1>
 
                         <h3>CPU Percentage</h3>
-                        <granite-c3 data="[[nodeCpuPercentData]]" point='{ "show": false }'></granite-c3>
+                        <granite-c3 data="[[nodeCpuPercentData]]" point='{ "show": false }' axis='{ "y": { "min": 0, "max": 100 } }'></granite-c3>
 
                         <h3>Memory Percentage</h3>
-                        <granite-c3 data="[[nodeMemoryPercentData]]" point='{ "show": false }'></granite-c3>
+                        <granite-c3 data="[[nodeMemoryPercentData]]" point='{ "show": false }' axis='{ "y": { "min": 0, "max": 100 } }'></granite-c3>
                     </paper-card>
                 </div>
             </div>
