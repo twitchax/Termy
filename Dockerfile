@@ -26,11 +26,9 @@ RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s
 RUN chmod +x ./kubectl
 RUN mv ./kubectl /usr/local/bin/kubectl
 
-# Get Azure CLI.
-RUN apt-get update -qq && apt-get install -qqy python libssl-dev libffi-dev python-dev build-essential
-RUN curl -L https://azurecliprod.blob.core.windows.net/install.py > azcliinstall.py
-RUN chmod a+x azcliinstall.py
-RUN echo -ne "\n\n" | ./azcliinstall.py
+# Get certbot.
+RUN apt-get update
+RUN apt-get install -y certbot
 
 
 # Run the npm install separately since it doesn't change often.
@@ -70,7 +68,10 @@ RUN echo ${config}
 COPY --from=builder /builder/bin/${config}/netcoreapp2.0/publish .
 COPY --from=hostbuilder /builder/termy-terminal-host .
 COPY --from=hostbuilder /builder/node_modules/node-pty/build/Release/pty.node .
-COPY ${source}/assets/terminal.yml .
-COPY ${source}/assets/start-host.sh .
+COPY ${source}/assets/termy-ingress.yml .
+COPY ${source}/assets/termy-service.yml .
+COPY ${source}/assets/termy-terminal-ingress.yml .
+COPY ${source}/assets/termy-terminal-host.yml .
+COPY ${source}/assets/start-terminal-host.sh .
 
 ENTRYPOINT dotnet Termy.dll

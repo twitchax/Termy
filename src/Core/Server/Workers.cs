@@ -6,27 +6,27 @@ using System.Threading.Tasks;
 
 namespace Termy
 {
-    public static class ActivityWorker
+    public static class Workers
     {
-        private static bool _started = false;
+        private static bool _nodeStatisticsWorkerStarted = false;
         private static int _updateIntervalInSeconds = 10;
         private static int _queueLength = 2 /* hours */ * 60 /* minutes/hr */ * 60 /* seconds/minute */ / _updateIntervalInSeconds;
         
         private static Dictionary<string, FixedSizedQueue<NodeStat>> _nodeStats = new Dictionary<string, FixedSizedQueue<NodeStat>>();
         public static Dictionary<string, FixedSizedQueue<NodeStat>> NodeStats => _nodeStats;
 
-        public static async void Start()
+        public static async void StartNodeActivityWorker()
         {
-            if(ActivityWorker._started)
+            if(Workers._nodeStatisticsWorkerStarted)
                 return;
             
-            ActivityWorker._started = true;
+            Workers._nodeStatisticsWorkerStarted = true;
 
             while(true)
             {
                 try
                 {
-                    var (nodes, _) = await Helpers.RunKubeCommand("ACTIVITY WORKER", "top node");
+                    var (nodes, _) = await Helpers.RunKubeCommand("NODE ACTIVITY WORKER", "top node");
 
                     var nodeStats = Helpers.TextToJArray(nodes).Select(n => new NodeStat {
                         Name = n.Value<string>("name"),
@@ -40,11 +40,11 @@ namespace Termy
                     foreach(var node in nodeStats)
                     {
                         if(!_nodeStats.ContainsKey(node.Name))
-                            _nodeStats.Add(node.Name, new FixedSizedQueue<NodeStat>(ActivityWorker._queueLength));
+                            _nodeStats.Add(node.Name, new FixedSizedQueue<NodeStat>(Workers._queueLength));
 
                         _nodeStats[node.Name].Enqueue(node);
 
-                        Console.WriteLine($" [ACTIVITY WORKER] {node.Name}.");
+                        Console.WriteLine($" [NODE ACTIVITY WORKER] {node.Name}.");
                         Console.WriteLine($"    CpuCores: {node.CpuCores}.");
                         Console.WriteLine($"    CpuPercent: {node.CpuPercent}.");
                         Console.WriteLine($"    MemoryBytes: {node.MemoryBytes}.");
@@ -55,9 +55,15 @@ namespace Termy
                 }
                 catch(Exception e)
                 {
-                    Console.WriteLine($" [ACTIVITY WORKER] Failed: {e.Message}.\n\n{e.StackTrace}");
+                    Console.WriteLine($" [NODE ACTIVITY WORKER] Failed: {e.Message}.\n\n{e.StackTrace}");
                 }
             }
+        }
+
+        public static async void StartCertbotWorker()
+        {
+            // TODO: This would be nice one day, but certbot does not allow automated wildcard certificate creation at this time.
+            //var (res, err) = await Helpers.RunCertbotCommand("CERTBOT WORKER", $"certonly --webroot /app/build/default -d {Settings.HostName} -d \"*.{Settings.HostName}\" --server https://acme-v02.api.letsencrypt.org/directory");
         }
     }
 

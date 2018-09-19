@@ -1,0 +1,20 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: termy-terminal-in
+  namespace: {{namespace}}
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+spec:
+  tls:
+  - secretName: termy-secrets
+  rules:
+  - host: none.com
+    http:
+      paths:
+      - backend:
+          serviceName: dummy-svc
+          servicePort: 80

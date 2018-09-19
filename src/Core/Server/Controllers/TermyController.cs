@@ -23,10 +23,10 @@ namespace Termy.Controllers
         [HttpGet("/api/terminal")]
         public async Task<IActionResult> GetTerminals()
         {
-            var id = GetId();
+            var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetTerminals)} ...");
 
-            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services --namespace={Settings.KubeNamespace}");
+            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services --namespace={Settings.KubeTerminalNamespace}");
 
             Helpers.Log(id, $"Done.");
             return Ok(Helpers.TextToJArray(terminals));
@@ -35,10 +35,10 @@ namespace Termy.Controllers
         [HttpGet("/api/terminal/{name}")]
         public async Task<IActionResult> GetTerminal(string name)
         {
-            var id = GetId();
+            var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetTerminal)} ...");
 
-            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services {name} --namespace={Settings.KubeNamespace}");
+            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services {name} --namespace={Settings.KubeTerminalNamespace}");
 
             Helpers.Log(id, $"Done.");
             return Ok(terminals);
@@ -50,16 +50,18 @@ namespace Termy.Controllers
             if(!this.IsSuperUser)
                 return Unauthorized();
             
-            var id = GetId();
+            var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(DeleteTerminals)} ...");
 
-            await Helpers.RunKubeCommand(id, $"delete deployment,service --namespace={Settings.KubeNamespace} --all");
-
-            await Helpers.RunAzCommand(id, Settings.AzLoginCommand);
-            var records = (await Helpers.RunAzCommand(id, $"network dns record-set list -z {Settings.AzDnsZone} -g {Settings.AzGroup} --query [].name -o tsv")).Standard.Split('\n').Where(s => !string.IsNullOrWhiteSpace(s) && s != "@");
-
-            foreach(var record in records)
-                await Helpers.RunAzCommand(id, $"network dns record-set a delete -z {Settings.AzDnsZone} -g {Settings.AzGroup} -n {record} -y");
+            await Helpers.RunKubeCommand(id, $"delete deployment,service --namespace={Settings.KubeTerminalNamespace} --all");
+            
+            // TODO: Delete ingress entry.
+            await Helpers.TransformTerminalIngress(id, ingressJson => {
+                ingressJson["spec"]["rules"] = new JArray((ingressJson["spec"]["rules"] as JArray).Where(r => {
+                    var host = (r as JObject).Value<string>("host");
+                    return host == "none.com";
+                }));
+            });
 
             Helpers.Log(id, $"Done.");
             return Ok();
@@ -71,13 +73,17 @@ namespace Termy.Controllers
             if(!this.IsSuperUser)
                 return Unauthorized();
             
-            var id = GetId();
+            var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(DeleteTerminal)} ...");
 
-            await Helpers.RunKubeCommand(id, $"delete deployment,service {name} --namespace={Settings.KubeNamespace}");
+            await Helpers.RunKubeCommand(id, $"delete deployment,service {name} --namespace={Settings.KubeTerminalNamespace}");
 
-            await Helpers.RunAzCommand(id, Settings.AzLoginCommand);
-            await Helpers.RunAzCommand(id, $"network dns record-set a delete -z {Settings.AzDnsZone} -g {Settings.AzGroup} -n {name} -y");
+            await Helpers.TransformTerminalIngress(id, ingressJson => {
+                ingressJson["spec"]["rules"] = new JArray((ingressJson["spec"]["rules"] as JArray).Where(r => {
+                    var host = (r as JObject).Value<string>("host").Split(".").First();
+                    return host != name && host != $"t-{name}";
+                }));
+            });
 
             Helpers.Log(id, $"Done.");
             return Ok();
@@ -89,7 +95,7 @@ namespace Termy.Controllers
             if(!this.IsSuperUser)
                 return Unauthorized();
             
-            var id = GetId();
+            var id = Helpers.GetId();
 
             Helpers.Log(id, $"Starting {nameof(CreateTerminal)} ...");
 
@@ -109,80 +115,88 @@ namespace Termy.Controllers
                 Helpers.Log(id, $"Failed: bad name.");
                 return this.BadRequest("The name must match: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'.");
             }
-            var existing = (await Helpers.RunKubeCommand(id, $"describe services/{request.Name} --namespace={Settings.KubeNamespace}")).Standard;
+            if(request.Name.StartsWith("t-"))
+            {
+                Helpers.Log(id, $"Failed: bad name: began with `t-`.");
+                return this.BadRequest("The name must not begin with `t-`.");
+            }
+            var existing = (await Helpers.RunKubeCommand(id, $"describe services/{request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard;
             if(!string.IsNullOrWhiteSpace(existing))
             {
                 Helpers.Log(id, $"Failed: terminal name already exists.");
                 return this.BadRequest("A terminal with this name already exists.");
             }
-            
-            // Ensure namespace exists.
-            Helpers.Log(id, $"Ensuring k8s namespace ({Settings.KubeNamespace}) ...");
-            await Helpers.RunKubeCommand(id, $"create namespace {Settings.KubeNamespace}");
-
-            // Ensure deployments directory exists.
-            Directory.CreateDirectory("deployments");
 
             // Create yaml for kube deployment.
             Helpers.Log(id, $"Creating k8s yaml ...");
             var terminalYamlText = Settings.TerminalYamlTemplate
                 .Replace("{{name}}", request.Name)
+                .Replace("{{namespace}}", Settings.KubeTerminalNamespace)
                 .Replace("{{image}}", request.Image)
                 .Replace("{{password}}", request.Password)
-                .Replace("{{su}}", Settings.SuperUserPassword)
                 .Replace("{{shell}}", request.Shell)
                 .Replace("{{command}}", request.Command.Replace("\"", "\\\""))
                 .Replace("{{port}}", request.Port.ToString());
             var terminalYamlPath = $"deployments/{request.Name}_{DateTime.Now.Ticks}.yml";
             await System.IO.File.WriteAllTextAsync(terminalYamlPath, terminalYamlText);
 
-            // Create deployment.
-            Helpers.Log(id, $"Creating k8s deployment ...");
-            await Helpers.RunKubeCommand(id, $"create -f {terminalYamlPath}");
-            await RetryUntil(id, "deployment", async () => {
-                var deployments = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get deploy/{request.Name} --namespace={Settings.KubeNamespace}")).Standard);
+            // Apply deployment.
+            Helpers.Log(id, $"Applying k8s deployment ...");
+            await Helpers.RunKubeCommand(id, $"apply -f {terminalYamlPath}");
+            Console.WriteLine("Here 1!");
+            await Helpers.RetryUntil(id, "deployment", async () => {
+                var deployments = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get deploy/{request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard);
 
                 return deployments?.FirstOrDefault()?.Value<string>("available");
             }, val => val != "0");
-            var podName = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get pods -l=run={request.Name} --namespace={Settings.KubeNamespace}")).Standard).FirstOrDefault().Value<string>("name");
+            Console.WriteLine("Here 2!");
+            var podName = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get pods -l=terminal-run={request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard).FirstOrDefault().Value<string>("name");
             Helpers.Log(id, $"Pod name is `{podName}`.");
+            Console.WriteLine("Here 3!");
 
             // Copy terminal host files to pod.
             Helpers.Log(id, $"Copying host files to pod ...");
-            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostServerFile} {Settings.KubeNamespace}/{podName}:/{Settings.TerminalHostServerFile}");
-            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostPuttyFile} {Settings.KubeNamespace}/{podName}:/{Settings.TerminalHostPuttyFile}");
-            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostStartScript} {Settings.KubeNamespace}/{podName}:/{Settings.TerminalHostStartScript}");
+            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostServerFile} {Settings.KubeTerminalNamespace}/{podName}:/{Settings.TerminalHostServerFile}");
+            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostPuttyFile} {Settings.KubeTerminalNamespace}/{podName}:/{Settings.TerminalHostPuttyFile}");
+            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostStartScript} {Settings.KubeTerminalNamespace}/{podName}:/{Settings.TerminalHostStartScript}");
 
             // Exec the server on the pod.
             Helpers.Log(id, $"Starting pty server on pod ...");
-            await Helpers.RunKubeCommand(id, $"exec {podName} -i --namespace={Settings.KubeNamespace} /start-host.sh");
+            await Helpers.RunKubeCommand(id, $"exec {podName} -i --namespace={Settings.KubeTerminalNamespace} -- bash -c \"echo 'root:{Settings.SuperUserPassword}' | chpasswd\"");
+            await Helpers.RunKubeCommand(id, $"exec {podName} -i --namespace={Settings.KubeTerminalNamespace} /{Settings.TerminalHostStartScript}");
 
-            // Expose a load balancer to get a public IP.
-            Helpers.Log(id, $"Exposing k8s service for deployment ...");
-            await Helpers.RunKubeCommand(id, $"expose deployment {request.Name} --type=LoadBalancer --name={request.Name} --namespace={Settings.KubeNamespace}");
-            var ip = await RetryUntil(id, "IP", async () => {
-                var (val, _) = await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Settings.KubeNamespace} -o=jsonpath='{{.status.loadBalancer.ingress[].ip}}'");
+            // Add to the ingress configuration.
+            await Helpers.TransformTerminalIngress(id, ingressJson => {
+                var ingressRuleObjects = new List<JObject>();
+                ingressRuleObjects.Add(JObject.Parse(
+                    Helpers.IngressTemplate
+                        .Replace("{{host}}", $"{request.Name}.{Settings.HostName}")
+                        .Replace("{{serviceName}}", request.Name)
+                        .Replace("{{servicePort}}", 80.ToString())
+                ));
+                ingressRuleObjects.Add(JObject.Parse(
+                    Helpers.IngressTemplate
+                        .Replace("{{host}}", $"t-{request.Name}.{Settings.HostName}")
+                        .Replace("{{serviceName}}", request.Name)
+                        .Replace("{{servicePort}}", request.Port.ToString())
+                ));
 
-                return val;
-            }, val => val != "''");
-
-            // Provision the DNS record in Azure.
-            Helpers.Log(id, $"Provisioning DNS record ...");
-            await Helpers.RunAzCommand(id, Settings.AzLoginCommand);
-            await Helpers.RunAzCommand(id, $"network dns record-set a add-record -z {Settings.AzDnsZone} -g {Settings.AzGroup} -n {request.Name} -a {ip.Replace("\'", "")}");
+                foreach(var obj in ingressRuleObjects)
+                    (ingressJson["spec"]["rules"] as JArray).Add(obj);
+            });
             
             // Finalize.
             Helpers.Log(id, $"Done.");
-            return Ok((await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Settings.KubeNamespace}")).Standard + "\n" + $"{request.Name}.{Settings.AzDnsZone}");
+            return Ok((await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard + "\n" + $"t-{request.Name}.{Settings.HostName}");
         }
 
         [HttpGet("/api/node/stats")]
         public async Task<IActionResult> GetNodeStats()
         {
-            var id = GetId();
+            var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetNodeStats)} ...");
 
-            var nodeStats = ActivityWorker.NodeStats;
+            var nodeStats = Workers.NodeStats;
 
             Helpers.Log(id, $"Done.");
             return Ok(nodeStats);
@@ -199,37 +213,6 @@ namespace Termy.Controllers
 
             return this.Unauthorized();
         }
-
-        private async Task<T> RetryUntil<T>(string id, string name, Func<Task<T>> func, Func<T, bool> predicate, uint maxRetry = 60)
-        {
-            T result = default(T);
-            uint tryCount = 0;
-
-            do
-            {
-                Helpers.Log(id, $"Trying to get `{name}`: {result} ...");
-
-                try
-                {
-                    result = await func();
-                } catch(Exception) {}
-
-                await Task.Delay(5000);
-
-                tryCount++;
-            } while(!predicate(result) && tryCount < maxRetry);
-
-            if(tryCount >= maxRetry)
-            {
-                Helpers.Log(id, $"Retry timed out for `{name}`.");
-                throw new Exception($"Hit the max number of retries while trying to get `{name}`.");
-            }
-
-            Helpers.Log(id, $"Got `{name}`: {result}.");
-            return result;
-        }
-
-        private string GetId() => new string(Guid.NewGuid().ToString().Take(6).ToArray());
     }
 
     public class CreateTerminalRequest
@@ -239,7 +222,7 @@ namespace Termy.Controllers
         [Required]
         public string Image { get; set; }
         
-        public int Port { get; set; } = 5443;
+        public int Port { get; set; } = 5080;
         public string Password { get; set; } = "null";
         public string Shell { get; set; } = "/bin/bash";
         public string Command { get; set; } = "while true; do sleep 30; done;";

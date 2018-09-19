@@ -31,8 +31,8 @@ export class MyApp extends PolymerElement {
     loading!: PaperSpinnerElement;
     @query('#terminalImage')
     terminalImage!: PaperInputElement;
-    @query('#terminalPort')
-    terminalPort!: PaperInputElement;
+    //@query('#terminalPort')
+    //terminalPort!: PaperInputElement;
     @query('#terminalPassword')
     terminalPassword!: PaperInputElement;
     @query('#terminalShell')
@@ -138,7 +138,7 @@ export class MyApp extends PolymerElement {
 
         req.name = resolveString(this.terminalName.value) || '';
         req.image = resolveString(this.terminalImage.value) || '';
-        req.port = resolveNumber(this.terminalPort.value);
+        //req.port = resolveNumber(this.terminalPort.value);
         req.password = resolveString(this.terminalPassword.value);
         req.shell = resolveString(this.terminalShell.value);
         req.command = resolveString(this.terminalCommand.value);
@@ -163,7 +163,6 @@ export class MyApp extends PolymerElement {
     private clearCreateTerminalValues() {
         this.terminalName.value = undefined;
         this.terminalImage.value = undefined;
-        this.terminalPort.value = undefined;
         this.terminalPassword.value = undefined;
         this.terminalShell.value = undefined;
         this.terminalCommand.value = undefined;
@@ -201,7 +200,8 @@ export class MyApp extends PolymerElement {
 
                     <paper-input id="terminalName" label="Name" required auto-validate error-message="Required."></paper-input>
                     <paper-input id="terminalImage" label="Image" required auto-validate error-message="Required."></paper-input>
-                    <paper-input id="terminalPort" label="Port"></paper-input>
+                    <!-- Remove this for now, until k8s ingresses support port mappings. -->
+                    <!-- <paper-input id="terminalPort" label="Port"></paper-input> -->
                     <paper-input id="terminalPassword" label="Password" type="password"></paper-input>
                     <paper-input id="terminalShell" label="Shell"></paper-input>
                     <paper-textarea id="terminalCommand" label="Start Command"></paper-textarea>
@@ -213,7 +213,7 @@ export class MyApp extends PolymerElement {
                 </paper-card>
 
                 <!-- Center pane. -->
-                <div style="display: flex; flex-direction: column; overflow: scroll; height: 100vh;">
+                <div style="display: flex; flex-direction: column; overflow: auto; height: 95vh; min-width: 800px;">
                     <paper-card>
                         <h1>Terminals</h1>
 
@@ -223,9 +223,9 @@ export class MyApp extends PolymerElement {
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>URL</th>
-                                    <th>IP</th>
-                                    <th>Ports</th>
+                                    <th>Terminal URL</th>
+                                    <th>Web URL</th>
+                                    <th>Open Ports</th>
                                     <th>Delete?</th>
                                 </tr>
                             </thead>
@@ -234,9 +234,11 @@ export class MyApp extends PolymerElement {
                                     <tr>
                                         <td>[[terminal.name]]</td>
                                         <td>
-                                            <a href="https://[[terminal.name]].box.termy.in:5443/">https://[[terminal.name]].box.termy.in:5443/</a>
+                                            <a href="https://t-[[terminal.name]].termy.in/">https://t-[[terminal.name]].termy.in/</a>
                                         </td>
-                                        <td>[[terminal.externalip]]</td>
+                                        <td>
+                                            <a href="https://[[terminal.name]].termy.in/">https://[[terminal.name]].termy.in/</a>
+                                        </td>
                                         <td>[[terminal.ports]]</td>
                                         <td>
                                             <paper-button data-name$="[[terminal.name]]" on-tap="deleteTerminal" raised>Delete</paper-button>

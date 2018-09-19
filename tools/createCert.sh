@@ -8,10 +8,11 @@ set -e
 
 sudo ./certbot-auto certonly --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory
 
-#3: Put the DNS names in: termy.in, *.box.termy.in.
+# 3: Put the DNS names in: termy.in, *.termy.in.
 
 # 4. Put the challenge in the DNS Zones File as a TXT from root.
 
-sudo openssl pkcs12 -export -out .hidden/cert.pfx -inkey /etc/letsencrypt/live/box.termy.in/privkey.pem -in /etc/letsencrypt/live/box.termy.in/cert.pem -certfile /etc/letsencrypt/live/box.termy.in/fullchain.pem
+sudo cat /etc/letsencrypt/live/termy.in-0001/fullchain.pem > .hidden/tls.crt
+sudo cat /etc/letsencrypt/live/termy.in-0001/privkey.pem > .hidden/tls.key
 
 # 5. Put the PFX, and the password, in the k8s cluster as a secret.

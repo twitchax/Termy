@@ -1,0 +1,54 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    terminal-run: {{name}}
+  name: {{name}}
+  namespace: {{namespace}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      terminal-run: {{name}}
+  template:
+    metadata:
+      labels:
+        terminal-run: {{name}}
+    spec:
+      containers:
+      - image: {{image}}
+        name: {{name}}
+        imagePullPolicy: Always
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "{{command}}" ]
+        env:
+        - name: TERMY_PORT
+          value: "{{port}}"
+        - name: TERMY_PASSWORD
+          value: "{{password}}"
+        - name: TERMY_SHELL
+          value: "{{shell}}"
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+        - containerPort: {{port}}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{name}}
+  labels:
+    terminal-run: {{name}}
+  namespace: {{namespace}}
+spec:
+  selector:
+    terminal-run: {{name}}
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  - name: terminal
+    protocol: TCP
+    port: {{port}}
+    targetPort: {{port}}

@@ -8,23 +8,13 @@ const shelljs = require('shelljs');
 const pty = require('node-pty');
 const expressWs = require('express-ws');
 
-const port = process.env.PORT || 80;
-const password = process.env.PASSWORD || 'null';
-const shell = process.env.SHELL || '/bin/bash';
+const port = process.env.TERMY_PORT;
+const password = process.env.TERMY_PASSWORD || 'null';
+const shell = process.env.TERMY_SHELL || '/bin/bash';
 
 const app = express();
 
-var server;
-
-if(port != 80) {
-    var options = {
-        pfx: fs.readFileSync('/etc/secrets/cert.pfx'),
-        passphrase: fs.readFileSync('/etc/secrets/certpw'), 
-    };
-    server = https.createServer(options, app);
-} else {
-    server = http.createServer(app);
-}
+const server = http.createServer(app);
 
 server.timeout = 300000;  
 

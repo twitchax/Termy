@@ -2,18 +2,18 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    run: termy
+    app: termy
   name: termy
-  namespace: default
+  namespace: termy
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: termy
+      app: termy
   template:
     metadata:
       labels:
-        run: termy
+        app: termy
     spec:
       containers:
       - image: twitchax/termy
@@ -23,12 +23,12 @@ spec:
         - containerPort: 80
         - containerPort: 443
         volumeMounts:
-        - name: termysecrets
+        - name: secrets
           readOnly: true
           mountPath: /etc/secrets
         securityContext:
           privileged: true
       volumes:
-      - name: termysecrets
+      - name: secrets
         secret:
-          secretName: termysecrets
+          secretName: termy-secrets

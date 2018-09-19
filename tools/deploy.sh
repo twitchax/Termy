@@ -1,13 +1,20 @@
 #!/bin/bash
+
 # Run from project root.
+# Do not run in any subsequent operations.
 
-# set -e
+set -e
 
-kubectl delete deploy/termy
+# Ensure ingress controller.
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/mandatory.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/provider/cloud-generic.yaml
 
-docker build -t twitchax/termy .
-docker push twitchax/termy
+# Create namespace.
+kubectl apply -f assets/termy-ns.yml
 
-kubectl create -f assets/termy.yml
+# Create secrets.
+kubectl create secret generic termy-secrets --namespace termy --from-file=.hidden/hostname --from-file=.hidden/kubeconfig --from-file=.hidden/supw --from-file=.hidden/tls.crt --from-file=.hidden/tls.key
+kubectl create secret generic termy-secrets --namespace termy-terminals --from-file=.hidden/tls.crt --from-file=.hidden/tls.key
 
-kubectl expose deployment termy --type=LoadBalancer --name=termy
+# Create termy.
+kubectl apply -f assets/termy.yml
