@@ -170,6 +170,33 @@ namespace Termy
             return result;
         }
 
+        public static bool IsCnamesValid(string cnamesString)
+        {
+            try
+            {
+                return string.IsNullOrWhiteSpace(cnamesString) || cnamesString.Split(' ', ',').Select(s => s.Trim().ToLower()).All(s => Uri.CheckHostName(s) != UriHostNameType.Unknown);
+            }
+            catch(Exception)
+            {
+                return false;
+            }
+        }
+
+        public static IEnumerable<string> ResolveCnames(string cnamesString)
+        {
+            try
+            {
+                if(string.IsNullOrWhiteSpace(cnamesString))
+                    return new List<string>();
+                else
+                    return cnamesString.Split(' ', ',').Select(s => s.Trim().ToLower());
+            }
+            catch(Exception)
+            {
+                throw new Exception("CNAMEs should be validated upon creation request: this should never happen.");
+            }
+        }
+
         public static string GetId() => new string(Guid.NewGuid().ToString().Take(6).ToArray());
         
         public static string IngressTemplate => @"

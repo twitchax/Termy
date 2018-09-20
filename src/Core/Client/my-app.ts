@@ -33,6 +33,8 @@ export class MyApp extends PolymerElement {
     terminalImage!: PaperInputElement;
     //@query('#terminalPort')
     //terminalPort!: PaperInputElement;
+    @query('#terminalCnames')
+    terminalCnames!: PaperInputElement;
     @query('#terminalPassword')
     terminalPassword!: PaperInputElement;
     @query('#terminalShell')
@@ -138,6 +140,7 @@ export class MyApp extends PolymerElement {
 
         req.name = resolveString(this.terminalName.value) || '';
         req.image = resolveString(this.terminalImage.value) || '';
+        req.cnames = resolveString(this.terminalCnames.value);
         //req.port = resolveNumber(this.terminalPort.value);
         req.password = resolveString(this.terminalPassword.value);
         req.shell = resolveString(this.terminalShell.value);
@@ -163,6 +166,7 @@ export class MyApp extends PolymerElement {
     private clearCreateTerminalValues() {
         this.terminalName.value = undefined;
         this.terminalImage.value = undefined;
+        this.terminalCnames.value = undefined;
         this.terminalPassword.value = undefined;
         this.terminalShell.value = undefined;
         this.terminalCommand.value = undefined;
@@ -200,6 +204,7 @@ export class MyApp extends PolymerElement {
 
                     <paper-input id="terminalName" label="Name" required auto-validate error-message="Required."></paper-input>
                     <paper-input id="terminalImage" label="Image" required auto-validate error-message="Required."></paper-input>
+                    <paper-input id="terminalCnames" label="CNAMEs"></paper-input>
                     <!-- Remove this for now, until k8s ingresses support port mappings. -->
                     <!-- <paper-input id="terminalPort" label="Port"></paper-input> -->
                     <paper-input id="terminalPassword" label="Password" type="password"></paper-input>

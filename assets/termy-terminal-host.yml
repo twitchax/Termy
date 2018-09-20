@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   labels:
     terminal-run: {{name}}
+    cnames: "{{cnames}}"
   name: {{name}}
   namespace: {{namespace}}
 spec:
