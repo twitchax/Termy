@@ -228,9 +228,7 @@ export class MyApp extends PolymerElement {
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Terminal URL</th>
-                                    <th>Web URL</th>
-                                    <th>Open Ports</th>
+                                    <th>CNAMEs</th>
                                     <th>Delete?</th>
                                 </tr>
                             </thead>
@@ -239,12 +237,14 @@ export class MyApp extends PolymerElement {
                                     <tr>
                                         <td>[[terminal.name]]</td>
                                         <td>
-                                            <a href="https://t-[[terminal.name]].termy.in/">https://t-[[terminal.name]].termy.in/</a>
+                                            <ul style="list-style: none;">
+                                                <dom-repeat items="[[terminal.cnameMaps]]">
+                                                    <template>
+                                                        <li><a href="https://[[item.name]]/">https://[[item.name]]/</a> => [[item.port]]</li>
+                                                    </template>
+                                                </dom-repeat>
+                                            </ul>
                                         </td>
-                                        <td>
-                                            <a href="https://[[terminal.name]].termy.in/">https://[[terminal.name]].termy.in/</a>
-                                        </td>
-                                        <td>[[terminal.ports]]</td>
                                         <td>
                                             <paper-button data-name$="[[terminal.name]]" on-tap="deleteTerminal" raised>Delete</paper-button>
                                         </td>

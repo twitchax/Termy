@@ -3,9 +3,10 @@ kind: Deployment
 metadata:
   labels:
     terminal-run: {{name}}
-    cnames: "{{cnames}}"
   name: {{name}}
   namespace: {{namespace}}
+  annotations:
+    cnames: "{{cnames}}"
 spec:
   replicas: 1
   selector:
@@ -31,7 +32,6 @@ spec:
           value: "{{shell}}"
         ports:
         - containerPort: 80
-        - containerPort: 443
         - containerPort: {{port}}
 ---
 kind: Service

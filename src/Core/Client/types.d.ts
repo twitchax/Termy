@@ -1,11 +1,12 @@
 declare module Bll {
     interface Terminal {
         name: string;
-        type: string;
-        clusterip: string;
-        externalip: string;
-        ports: string;
-        age: string;
+        cnameMaps: CnameMap[];
+    }
+
+    interface CnameMap {
+        name: string;
+        port: number;
     }
 
     interface CreateTerminalRequest {
@@ -14,7 +15,6 @@ declare module Bll {
         password?: string;
         shell?: string;
         cnames?: string;
-        //port?: number;
         command?: string;
     }
 

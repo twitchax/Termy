@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
+// TODO: Move all k8s calls to C# API.
+
 namespace Termy.Controllers
 {
     public class TermyController : BaseController
@@ -17,7 +19,7 @@ namespace Termy.Controllers
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("3.2.0");
+            return Ok("3.3.0");
         }
 
         [HttpGet("/api/terminal")]
@@ -26,10 +28,18 @@ namespace Termy.Controllers
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetTerminals)} ...");
 
-            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services --namespace={Settings.KubeTerminalNamespace}");
+            var terminals = (await Helpers.KubeClient.ListNamespacedDeploymentWithHttpMessagesAsync(Settings.KubeTerminalNamespace)).Body.Items.Select(t => {
+                var name = t.Metadata.Name;
+                var cnames = Helpers.ResolveCnames(t.Metadata.Annotations["cnames"]);
+
+                return new TerminalResponse {
+                    Name = name,
+                    CnameMaps = cnames
+                };
+            });
 
             Helpers.Log(id, $"Done.");
-            return Ok(Helpers.TextToJArray(terminals));
+            return Ok(terminals);
         }
 
         [HttpGet("/api/terminal/{name}")]
@@ -79,7 +89,7 @@ namespace Termy.Controllers
             Helpers.Log(id, $"Starting {nameof(DeleteTerminal)} ...");
 
             // Get cnames for deployment.
-            var (cnamesString, _) = await Helpers.RunKubeCommand(id, $"get deployment/{name} --namespace={Settings.KubeTerminalNamespace} -o=jsonpath='{{.metadata.labels.cnames}}'");
+            var (cnamesString, _) = await Helpers.RunKubeCommand(id, $"get deployment/{name} --namespace={Settings.KubeTerminalNamespace} -o=jsonpath='{{.metadata.annotations.cnames}}'");
             var cnames = Helpers.ResolveCnames(cnamesString);
 
             // Remove all hosts and CNAMEs from ingress.
@@ -87,7 +97,7 @@ namespace Termy.Controllers
                 // NOTE: This `where` clause specifies which ingress rules to KEEP.
                 ingressJson["spec"]["rules"] = new JArray((ingressJson["spec"]["rules"] as JArray).Where(r => {
                     var host = (r as JObject).Value<string>("host").Split(".").First();
-                    return host != name && host != $"t-{name}" && !cnames.Contains(host);
+                    return host != name && host != $"{Settings.TerminalDomainNamePrefix}{name}" && !cnames.Select(c => c.Name).Contains(host);
                 }));
             });
 
@@ -125,10 +135,10 @@ namespace Termy.Controllers
                 Helpers.Log(id, $"Failed: bad name.");
                 return this.BadRequest("The name must match: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'.");
             }
-            if(request.Name.StartsWith("t-"))
+            if(request.Name.StartsWith(Settings.TerminalDomainNamePrefix))
             {
-                Helpers.Log(id, $"Failed: bad name: began with `t-`.");
-                return this.BadRequest("The name must not begin with `t-`.");
+                Helpers.Log(id, $"Failed: bad name: began with `{Settings.TerminalDomainNamePrefix}`.");
+                return this.BadRequest($"The name must not begin with `{Settings.TerminalDomainNamePrefix}`.");
             }
             var existing = (await Helpers.RunKubeCommand(id, $"describe services/{request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard;
             if(!string.IsNullOrWhiteSpace(existing))
@@ -142,6 +152,13 @@ namespace Termy.Controllers
                 return this.BadRequest("Provided CNAMEs could not be parsed or are invalid.");
             }
 
+            // Clean up CNAMEs and add default ones.
+            var cnames = Helpers.ResolveCnames(request.Cnames).ToList();
+            cnames.Insert(0, new CnameMap { Name = $"{Settings.TerminalDomainNamePrefix}{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalPtyPort });
+            cnames.Insert(0, new CnameMap { Name = $"{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalHttpPort });
+
+            // TODO: Check that there are no duplicate CNAMEs in this list, and check that there are no duplicate CNAMEs in the ingress.
+
             // Create yaml for kube deployment.
             Helpers.Log(id, $"Creating k8s yaml ...");
             var terminalYamlText = Settings.TerminalYamlTemplate
@@ -151,8 +168,8 @@ namespace Termy.Controllers
                 .Replace("{{password}}", request.Password)
                 .Replace("{{shell}}", request.Shell)
                 .Replace("{{command}}", request.Command.Replace("\"", "\\\""))
-                .Replace("{{port}}", request.Port.ToString())
-                .Replace("{{cnames}}", request.Cnames);
+                .Replace("{{port}}", Settings.DefaultTerminalPtyPort.ToString())
+                .Replace("{{cnames}}", string.Join(" ", cnames));
             var terminalYamlPath = $"deployments/{request.Name}_{DateTime.Now.Ticks}.yml";
             await System.IO.File.WriteAllTextAsync(terminalYamlPath, terminalYamlText);
 
@@ -167,6 +184,8 @@ namespace Termy.Controllers
             var podName = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get pods -l=terminal-run={request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard).FirstOrDefault().Value<string>("name");
             Helpers.Log(id, $"Pod name is `{podName}`.");
 
+            // TODO: Update the YAML to create a dummy service, and open all of the ports found in the CNAMEs (similar to the way ingress rules are applied).
+
             // Copy terminal host files to pod.
             Helpers.Log(id, $"Copying host files to pod ...");
             await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostServerFile} {Settings.KubeTerminalNamespace}/{podName}:/{Settings.TerminalHostServerFile}");
@@ -180,40 +199,22 @@ namespace Termy.Controllers
 
             // Add to the ingress configuration.
             await Helpers.TransformTerminalIngress(id, ingressJson => {
-                var ingressRuleObjects = new List<JObject>();
-
-                // HTTP(S) Rule.
-                ingressRuleObjects.Add(JObject.Parse(
-                    Helpers.IngressTemplate
-                        .Replace("{{host}}", $"{request.Name}.{Settings.HostName}")
-                        .Replace("{{serviceName}}", request.Name)
-                        .Replace("{{servicePort}}", 80.ToString())
-                ));
-
-                // Terminal rule.
-                ingressRuleObjects.Add(JObject.Parse(
-                    Helpers.IngressTemplate
-                        .Replace("{{host}}", $"t-{request.Name}.{Settings.HostName}")
-                        .Replace("{{serviceName}}", request.Name)
-                        .Replace("{{servicePort}}", request.Port.ToString())
-                ));
-
-                // CNAME rules.
-                foreach(var cname in Helpers.ResolveCnames(request.Cnames))
-                    ingressRuleObjects.Add(JObject.Parse(
+                foreach (var cname in cnames)
+                {
+                    var newEntry = JObject.Parse(
                         Helpers.IngressTemplate
-                            .Replace("{{host}}", cname)
+                            .Replace("{{host}}", cname.Name)
                             .Replace("{{serviceName}}", request.Name)
-                            .Replace("{{servicePort}}", 80.ToString())
-                    ));
+                            .Replace("{{servicePort}}", cname.Port.ToString())
+                    );
 
-                foreach(var obj in ingressRuleObjects)
-                    (ingressJson["spec"]["rules"] as JArray).Add(obj);
+                    (ingressJson["spec"]["rules"] as JArray).Add(newEntry);
+                }
             });
             
             // Finalize.
             Helpers.Log(id, $"Done.");
-            return Ok((await Helpers.RunKubeCommand(id, $"get services/{request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard + "\n" + $"t-{request.Name}.{Settings.HostName}");
+            return Ok($"{Settings.TerminalDomainNamePrefix}{request.Name}.{Settings.HostName}");
         }
 
         [HttpGet("/api/node/stats")]
@@ -249,10 +250,26 @@ namespace Termy.Controllers
         public string Image { get; set; }
         
         public string Cnames { get; set; } = "";
-        public int Port { get; set; } = 5080;
         public string Password { get; set; } = "null";
         public string Shell { get; set; } = "/bin/bash";
         public string Command { get; set; } = "while true; do sleep 30; done;";
+    }
+
+    public class TerminalResponse
+    {
+        public string Name { get; set; }
+        public IEnumerable<CnameMap> CnameMaps { get; set;}
+    }
+
+    public class CnameMap
+    {
+        public string Name { get; set; }
+        public int Port { get; set; }
+
+        public override string ToString()
+        {
+            return $"{this.Name}:{this.Port}";
+        }
     }
 
     public class KillRequest

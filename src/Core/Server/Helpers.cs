@@ -4,12 +4,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using k8s;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+using Termy.Controllers;
 
 namespace Termy
 {
@@ -17,9 +19,12 @@ namespace Termy
     {
         public static void Log(string id, string message) => Console.WriteLine($" [{id}] {message}");
 
+        private static KubernetesClientConfiguration KubeConfig = KubernetesClientConfiguration.BuildConfigFromConfigFile(Settings.KubeConfigPath);
+        public static Kubernetes KubeClient = new k8s.Kubernetes(KubeConfig);
+
         public static Task<(string Standard, string Error)> RunKubeCommand(string id, string args)
         {
-            return RunCommand(id, "kubectl", $"{args} --kubeconfig={Settings.KubeConfigPath}");
+            return RunCommand(id, "kubectl", $"{args} --kubeconfig=\"{Settings.KubeConfigPath}\"");
         }
 
         public static Task<(string Standard, string Error)> RunCertbotCommand(string id, string args)
@@ -174,7 +179,7 @@ namespace Termy
         {
             try
             {
-                return string.IsNullOrWhiteSpace(cnamesString) || cnamesString.Split(' ', ',').Select(s => s.Trim().ToLower()).All(s => Uri.CheckHostName(s) != UriHostNameType.Unknown);
+                return ResolveCnames(cnamesString).All(t => Uri.CheckHostName(t.Name) != UriHostNameType.Unknown);
             }
             catch(Exception)
             {
@@ -182,14 +187,21 @@ namespace Termy
             }
         }
 
-        public static IEnumerable<string> ResolveCnames(string cnamesString)
+        public static IEnumerable<CnameMap> ResolveCnames(string cnamesString)
         {
             try
             {
                 if(string.IsNullOrWhiteSpace(cnamesString))
-                    return new List<string>();
+                    return new List<CnameMap>();
                 else
-                    return cnamesString.Split(' ', ',').Select(s => s.Trim().ToLower());
+                    return cnamesString.Trim().Split(' ', ',').Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => {
+                        var splits = s.Trim().ToLower().Split(':');
+
+                        return new CnameMap {
+                            Name = splits[0], 
+                            Port = int.Parse(splits[1])
+                        };
+                    });
             }
             catch(Exception)
             {

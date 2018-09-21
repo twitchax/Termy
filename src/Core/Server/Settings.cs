@@ -12,20 +12,28 @@ namespace Termy
 
         #region User Secrets
 
-        public static readonly string KubeConfigPath = "\"/etc/secrets/kubeconfig\"";
+        public static readonly string KubeConfigPath = "/etc/secrets/kubeconfig";
         public static readonly string SuperUserPassword = File.ReadAllText("/etc/secrets/supw");
 
         #endregion
 
         #region Constants
 
+        #region Name Constants
+
+        public static readonly string TerminalDomainNamePrefix = "t-";
+        public static readonly int DefaultTerminalHttpPort = 80;
+        public static readonly int DefaultTerminalPtyPort = 22;
+
+        #endregion
+
         #region Kubernetes Constants
 
-        public static readonly string KubeNamespace = "\"termy\"";
-        public static readonly string KubeTerminalNamespace = "\"termy-terminals\"";
-        public static readonly string KubeTermyServiceName = "\"termy-svc\"";
-        public static readonly string KubeTermyIngressName = "\"termy-in\"";
-        public static readonly string KubeTermyTerminalIngressName = "\"termy-terminal-in\"";
+        public static readonly string KubeNamespace = "termy";
+        public static readonly string KubeTerminalNamespace = "termy-terminals";
+        public static readonly string KubeTermyServiceName = "termy-svc";
+        public static readonly string KubeTermyIngressName = "termy-in";
+        public static readonly string KubeTermyTerminalIngressName = "termy-terminal-in";
 
         #endregion
 
