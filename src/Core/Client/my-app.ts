@@ -228,6 +228,7 @@ export class MyApp extends PolymerElement {
                             <thead>
                                 <tr>
                                     <th>Name</th>
+                                    <th>Replicas</th>
                                     <th>CNAMEs</th>
                                     <th>Delete?</th>
                                 </tr>
@@ -236,11 +237,12 @@ export class MyApp extends PolymerElement {
                                 <template is="dom-repeat" items="[[terminals]]" as="terminal">
                                     <tr>
                                         <td>[[terminal.name]]</td>
+                                        <td>[[terminal.replicas]]</td>
                                         <td>
                                             <ul style="list-style: none;">
                                                 <dom-repeat items="[[terminal.cnameMaps]]">
                                                     <template>
-                                                        <li><a href="https://[[item.name]]/">https://[[item.name]]/</a> => [[item.port]]</li>
+                                                        <li><a href="http://[[item.name]]/">http://[[item.name]]/</a> => [[item.port]]</li>
                                                     </template>
                                                 </dom-repeat>
                                             </ul>

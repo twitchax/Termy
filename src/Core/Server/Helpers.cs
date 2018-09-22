@@ -194,7 +194,7 @@ namespace Termy
                 if(string.IsNullOrWhiteSpace(cnamesString))
                     return new List<CnameMap>();
                 else
-                    return cnamesString.Trim().Split(' ', ',').Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => {
+                    return cnamesString.Trim().Replace("\"", "").Replace("'", "").Split(' ', ',').Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => {
                         var splits = s.Trim().ToLower().Split(':');
 
                         return new CnameMap {

@@ -1,6 +1,7 @@
 declare module Bll {
     interface Terminal {
         name: string;
+        replicas?: number | null;
         cnameMaps: CnameMap[];
     }
 

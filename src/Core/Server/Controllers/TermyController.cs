@@ -34,6 +34,7 @@ namespace Termy.Controllers
 
                 return new TerminalResponse {
                     Name = name,
+                    Replicas = t.Status.AvailableReplicas, 
                     CnameMaps = cnames
                 };
             });
@@ -90,7 +91,7 @@ namespace Termy.Controllers
 
             // Get cnames for deployment.
             var (cnamesString, _) = await Helpers.RunKubeCommand(id, $"get deployment/{name} --namespace={Settings.KubeTerminalNamespace} -o=jsonpath='{{.metadata.annotations.cnames}}'");
-            var cnames = Helpers.ResolveCnames(cnamesString);
+            var cnames = Helpers.ResolveCnames(cnamesString).ToList();
 
             // Remove all hosts and CNAMEs from ingress.
             await Helpers.TransformTerminalIngress(id, ingressJson => {
@@ -258,6 +259,7 @@ namespace Termy.Controllers
     public class TerminalResponse
     {
         public string Name { get; set; }
+        public int? Replicas { get; set; }
         public IEnumerable<CnameMap> CnameMaps { get; set;}
     }
 
