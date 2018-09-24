@@ -5,9 +5,9 @@ metadata:
   namespace: {{namespace}}
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    #nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
-    #nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-    #nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
 spec:
   tls:
   - secretName: termy-secrets
