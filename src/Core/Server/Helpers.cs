@@ -17,10 +17,16 @@ namespace Termy
 {
     public static class Helpers
     {
+        static Helpers()
+        {
+            KubeConfig = KubernetesClientConfiguration.BuildConfigFromConfigFile(Settings.KubeConfigPath);
+            KubeClient = new k8s.Kubernetes(KubeConfig);
+        }
+
         public static void Log(string id, string message) => Console.WriteLine($" [{id}] {message}");
 
-        private static KubernetesClientConfiguration KubeConfig = KubernetesClientConfiguration.BuildConfigFromConfigFile(Settings.KubeConfigPath);
-        public static Kubernetes KubeClient = new k8s.Kubernetes(KubeConfig);
+        private static KubernetesClientConfiguration KubeConfig;
+        public static Kubernetes KubeClient;
 
         public static Task<(string Standard, string Error)> RunKubeCommand(string id, string args)
         {

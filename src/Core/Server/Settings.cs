@@ -1,4 +1,6 @@
+using System;
 using System.IO;
+using System.Linq;
 
 namespace Termy
 {
@@ -6,14 +8,14 @@ namespace Termy
     {
         #region User Settings
 
-        public static readonly string HostName = File.ReadAllText("/etc/secrets/hostname");
+        public static readonly string HostName = File.ReadAllText(ResolvePath(Environment.GetEnvironmentVariable("TERMY_HOSTNAME_PATH"), "/etc/secrets/hostname"));
 
         #endregion
 
         #region User Secrets
 
-        public static readonly string KubeConfigPath = "/etc/secrets/kubeconfig";
-        public static readonly string SuperUserPassword = File.ReadAllText("/etc/secrets/supw");
+        public static readonly string KubeConfigPath = ResolvePath(Environment.GetEnvironmentVariable("TERMY_KUBECONFIG_PATH"), "/etc/secrets/kubeconfig");
+        public static readonly string SuperUserPassword = File.ReadAllText(ResolvePath(Environment.GetEnvironmentVariable("TERMY_SUPW_PATH"), "/etc/secrets/supw"));
 
         #endregion
 
@@ -53,6 +55,15 @@ namespace Termy
         public static readonly string TerminalHostStartScript = "start-terminal-host.sh";
 
         #endregion
+
+        #endregion
+
+        #region Helpers
+
+        internal static string ResolvePath(params string[] paths)
+        {
+            return paths.FirstOrDefault(f => File.Exists(f)) ?? throw new Exception($"Could not resolve setting for paths ({string.Join(", ", paths)}).");
+        }
 
         #endregion
     }
