@@ -41,18 +41,19 @@ namespace Termy
 
         #region YAML Templates
 
-        public static readonly string TermyServiceYamlTemplate = File.ReadAllText("termy-service.yml");
-        public static readonly string TermyIngressYamlTemplate = File.ReadAllText("termy-ingress.yml");
-        public static readonly string TermyTerminalIngressYamlTemplate = File.ReadAllText("termy-terminal-ingress.yml");
-        public static readonly string TerminalYamlTemplate = File.ReadAllText("termy-terminal-host.yml");
+        public static readonly string TermyServiceYamlTemplate = File.ReadAllText("assets/termy-service.yml");
+        public static readonly string TermyIngressYamlTemplate = File.ReadAllText("assets/termy-ingress.yml");
+        public static readonly string TermyTerminalIngressYamlTemplate = File.ReadAllText("assets/termy-terminal-ingress.yml");
+        public static readonly string TerminalYamlTemplate = File.ReadAllText("assets/termy-terminal-host.yml");
 
         #endregion
 
         #region Terminal Start Files
 
-        public static readonly string TerminalHostServerFile = "termy-terminal-host";
-        public static readonly string TerminalHostPuttyFile = "pty.node";
-        public static readonly string TerminalHostStartScript = "start-terminal-host.sh";
+        public static readonly string TerminalHostServerFile = "assets/termy-terminal-host";
+        public static readonly string TerminalHostPuttyFile = "assets/pty.node";
+        public static readonly string TerminalHostStartScriptTemplate = "assets/start-terminal-host-template.sh";
+        public static readonly string TerminalHostStartScript = "assets/start-terminal-host.sh";
 
         #endregion
 

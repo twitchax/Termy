@@ -60,11 +60,11 @@ namespace Termy
             }
         }
 
-        public static async void StartCertbotWorker()
-        {
-            // TODO: This would be nice one day, but certbot does not allow automated wildcard certificate creation at this time.
-            //var (res, err) = await Helpers.RunCertbotCommand("CERTBOT WORKER", $"certonly --webroot /app/build/default -d {Settings.HostName} -d \"*.{Settings.HostName}\" --server https://acme-v02.api.letsencrypt.org/directory");
-        }
+        // public static async void StartCertbotWorker()
+        // {
+        //     // TODO: This would be nice one day, but certbot does not allow automated wildcard certificate creation at this time.
+        //     //var (res, err) = await Helpers.RunCertbotCommand("CERTBOT WORKER", $"certonly --webroot /app/build/default -d {Settings.HostName} -d \"*.{Settings.HostName}\" --server https://acme-v02.api.letsencrypt.org/directory");
+        // }
     }
 
     public class FixedSizedQueue<T> : Queue<T>

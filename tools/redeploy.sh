@@ -8,4 +8,4 @@ set -e
 docker build -t twitchax/termy .
 docker push twitchax/termy
 
-kubectl apply -f assets/termy.yml
+kubectl apply -f termy.yml

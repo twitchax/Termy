@@ -1,0 +1,67 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{name}}
+  labels:
+    terminal-run: {{name}}
+  namespace: {{namespace}}
+spec:
+  selector:
+    terminal-run: {{name}}
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  - name: terminal
+    protocol: TCP
+    port: {{port}}
+    targetPort: {{port}}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    terminal-run: {{name}}
+  name: {{name}}
+  namespace: {{namespace}}
+  annotations:
+    cnames: "{{cnames}}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      terminal-run: {{name}}
+  template:
+    metadata:
+      labels:
+        terminal-run: {{name}}
+    spec:
+      containers:
+      - image: {{image}}
+        name: {{name}}
+        imagePullPolicy: Always
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "{{command}}" ]
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/bash", "-c", "--", "mkdir /terminal-host; apt-get update; apt-get install -y curl; curl {{termyhostname}}/assets/start-terminal-host.sh > /terminal-host/start-terminal-host.sh; chmod a+x /terminal-host/start-terminal-host.sh; /terminal-host/start-terminal-host.sh;"]
+        env:
+        - name: TERMY_PORT
+          value: "{{port}}"
+        - name: TERMY_PASSWORD
+          value: "{{password}}"
+        - name: TERMY_SHELL
+          value: "{{shell}}"
+        ports:
+        - containerPort: 80
+        - containerPort: {{port}}
+        volumeMounts:
+        - name: secrets
+          readOnly: true
+          mountPath: /etc/secrets
+      volumes:
+      - name: secrets
+        secret:
+          secretName: termy-secrets

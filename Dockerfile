@@ -7,7 +7,6 @@ RUN apt-get update && apt-get install apt-transport-https
 RUN curl -sL https://deb.nodesource.com/setup_10.x | bash -
 RUN apt-get install -y nodejs
 RUN npm install -g npm
-RUN npm install -g --unsafe-perm polymer-cli
 
 
 # Create a special host builder img.
@@ -16,7 +15,7 @@ RUN apt-get update && apt-get install -y wget gnupg curl && curl -sL https://deb
 
 
 # Create a special shippable image with ship dependencies.
-FROM microsoft/aspnetcore as shipimg
+FROM microsoft/dotnet:aspnetcore-runtime as shipimg
 
 EXPOSE 80
 EXPOSE 443
@@ -65,13 +64,8 @@ ARG source
 ARG config="Release"
 WORKDIR /app
 RUN echo ${config}
-COPY --from=builder /builder/bin/${config}/netcoreapp2.0/publish .
-COPY --from=hostbuilder /builder/termy-terminal-host .
-COPY --from=hostbuilder /builder/node_modules/node-pty/build/Release/pty.node .
-COPY ${source}/assets/termy-ingress.yml .
-COPY ${source}/assets/termy-service.yml .
-COPY ${source}/assets/termy-terminal-ingress.yml .
-COPY ${source}/assets/termy-terminal-host.yml .
-COPY ${source}/assets/start-terminal-host.sh .
+COPY --from=builder /builder/bin/${config}/netcoreapp2.1/publish .
+COPY --from=hostbuilder /builder/termy-terminal-host ./assets/
+COPY --from=hostbuilder /builder/node_modules/node-pty/build/Release/pty.node ./assets/
 
 ENTRYPOINT dotnet Termy.dll

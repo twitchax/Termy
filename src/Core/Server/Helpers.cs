@@ -58,6 +58,8 @@ namespace Termy
             return t;
         }
 
+        public static string TermyClusterHostname => $"{Settings.KubeTermyServiceName}.{Settings.KubeNamespace}";
+
         public static JArray TextToJArray(string text)
         {
             var lines = text
@@ -103,11 +105,12 @@ namespace Termy
             await Helpers.RunKubeCommand(id, $"apply -f {ingressJsonPath}");
         }
 
-        public static async Task EnsureDependencies()
+        public static async void EnsureDependencies()
         {
             // Ensure deployments directory exists.
             Directory.CreateDirectory("deployments");
 
+            // Ensure base services and ingresses exist.
             var existingService = (await Helpers.RunKubeCommand("SERVICE", $"describe service/{Settings.KubeTermyServiceName} --namespace={Settings.KubeNamespace}")).Standard;
             if(string.IsNullOrWhiteSpace(existingService))
             {
@@ -144,6 +147,9 @@ namespace Termy
                 await System.IO.File.WriteAllTextAsync(terminalIngressYamlPath, terminalIngressYamlText);
                 await Helpers.RunKubeCommand("STARTUP", $"apply -f {terminalIngressYamlPath}");
             }
+
+            // Create the host script file.
+            await File.WriteAllTextAsync(Settings.TerminalHostStartScript, (await File.ReadAllTextAsync(Settings.TerminalHostStartScriptTemplate)).Replace("{{termyhostname}}", TermyClusterHostname));
         }
 
         public static async Task<T> RetryUntil<T>(string id, string name, Func<Task<T>> func, Func<T, bool> predicate, uint maxRetry = 60)

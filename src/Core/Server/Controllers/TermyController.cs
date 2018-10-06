@@ -11,6 +11,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 // TODO: Move all k8s calls to C# API.
+// TODO: [Termy] Move to json => transform json => move to kube API.
+// TODO: Let user keep their own entrypoint in Termy since  using postStart hook.
 
 namespace Termy.Controllers
 {
@@ -170,7 +172,8 @@ namespace Termy.Controllers
                 .Replace("{{shell}}", request.Shell)
                 .Replace("{{command}}", request.Command.Replace("\"", "\\\""))
                 .Replace("{{port}}", Settings.DefaultTerminalPtyPort.ToString())
-                .Replace("{{cnames}}", string.Join(" ", cnames));
+                .Replace("{{cnames}}", string.Join(" ", cnames))
+                .Replace("{{termyhostname}}", Helpers.TermyClusterHostname);
             var terminalYamlPath = $"deployments/{request.Name}_{DateTime.Now.Ticks}.yml";
             await System.IO.File.WriteAllTextAsync(terminalYamlPath, terminalYamlText);
 
@@ -186,17 +189,6 @@ namespace Termy.Controllers
             Helpers.Log(id, $"Pod name is `{podName}`.");
 
             // TODO: Update the YAML to create a dummy service, and open all of the ports found in the CNAMEs (similar to the way ingress rules are applied).
-
-            // Copy terminal host files to pod.
-            Helpers.Log(id, $"Copying host files to pod ...");
-            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostServerFile} {Settings.KubeTerminalNamespace}/{podName}:/{Settings.TerminalHostServerFile}");
-            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostPuttyFile} {Settings.KubeTerminalNamespace}/{podName}:/{Settings.TerminalHostPuttyFile}");
-            await Helpers.RunKubeCommand(id, $"cp {Settings.TerminalHostStartScript} {Settings.KubeTerminalNamespace}/{podName}:/{Settings.TerminalHostStartScript}");
-
-            // Exec the server on the pod.
-            Helpers.Log(id, $"Starting pty server on pod ...");
-            await Helpers.RunKubeCommand(id, $"exec {podName} -i --namespace={Settings.KubeTerminalNamespace} -- bash -c \"echo 'root:{Settings.SuperUserPassword}' | chpasswd\"");
-            await Helpers.RunKubeCommand(id, $"exec {podName} -i --namespace={Settings.KubeTerminalNamespace} /{Settings.TerminalHostStartScript}");
 
             // Add to the ingress configuration.
             await Helpers.TransformTerminalIngress(id, ingressJson => {
@@ -219,7 +211,7 @@ namespace Termy.Controllers
         }
 
         [HttpGet("/api/node/stats")]
-        public async Task<IActionResult> GetNodeStats()
+        public IActionResult GetNodeStats()
         {
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetNodeStats)} ...");
