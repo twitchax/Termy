@@ -11,21 +11,14 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
-using Termy.Controllers;
+using Termy.Models;
+using Termy.Services;
 
 namespace Termy
 {
     public static class Helpers
     {
         public static void Log(string id, string message) => Console.WriteLine($" [{id}] {message}");
-
-        private static KubernetesClientConfiguration KubeConfig => KubernetesClientConfiguration.BuildConfigFromConfigFile(Settings.KubeConfigPath);
-        public static Kubernetes KubeClient => new k8s.Kubernetes(KubeConfig);
-
-        public static Task<(string Standard, string Error)> RunKubeCommand(string id, string args)
-        {
-            return RunCommand(id, "kubectl", $"{args} --kubeconfig=\"{Settings.KubeConfigPath}\"");
-        }
 
         public static Task<(string Standard, string Error)> RunCertbotCommand(string id, string args)
         {
@@ -91,65 +84,52 @@ namespace Termy
             return list;
         }
 
-        public static async Task TransformTerminalIngress(string id, Action<JObject> transform)
+        public static async void EnsureDependencies(IKubernetesService kube)
         {
-            Helpers.Log(id, $"Tranforming terminal ingress ...");
-            var (ingressText, _) = await Helpers.RunKubeCommand(id, $"get ingress termy-terminal-in --namespace={Settings.KubeTerminalNamespace} -o json");
-            var ingressJson = JObject.Parse(ingressText);
+            var tasks = new List<Task>();
 
-            transform(ingressJson);
-
-            var ingressJsonPath = $"deployments/ingress_transform_{DateTime.Now.Ticks}.json";
-            await System.IO.File.WriteAllTextAsync(ingressJsonPath, ingressJson.ToString());
-
-            await Helpers.RunKubeCommand(id, $"apply -f {ingressJsonPath}");
-        }
-
-        public static async void EnsureDependencies()
-        {
             // Ensure deployments directory exists.
             Directory.CreateDirectory("deployments");
 
             // Ensure base services and ingresses exist.
-            var existingService = (await Helpers.RunKubeCommand("SERVICE", $"describe service/{Settings.KubeTermyServiceName} --namespace={Settings.KubeNamespace}")).Standard;
-            if(string.IsNullOrWhiteSpace(existingService))
+            var existingService = await kube.GetServicesAsync(Settings.KubeNamespace).WithName(Settings.KubeTermyServiceName);
+            if(existingService == null)
             {
                 // Create termy service.
                 Helpers.Log("SERVICE", $"Applying service dependency ...");
                 var serviceYamlText = Settings.TermyServiceYamlTemplate
                     .Replace("{{namespace}}", Settings.KubeNamespace);
-                var serviceYamlPath = $"service_{DateTime.Now.Ticks}.yml";
-                await System.IO.File.WriteAllTextAsync(serviceYamlPath, serviceYamlText);
-                await Helpers.RunKubeCommand("STARTUP", $"apply -f {serviceYamlPath}");
+                
+                tasks.Add(kube.ApplyAsync(serviceYamlText));
             }
 
-            var existingIngress = (await Helpers.RunKubeCommand("INGRESS", $"describe ingress/{Settings.KubeTermyIngressName} --namespace={Settings.KubeNamespace}")).Standard;
-            if(string.IsNullOrWhiteSpace(existingIngress))
+            var existingIngress = await kube.GetIngressesAsync(Settings.KubeNamespace).WithName(Settings.KubeTermyIngressName);
+            if(existingIngress == null)
             {
                 // Create termy ingress.
                 Helpers.Log("INGRESS", $"Applying ingress dependency ...");
                 var ingressYamlText = Settings.TermyIngressYamlTemplate
                     .Replace("{{namespace}}", Settings.KubeNamespace)
                     .Replace("{{host}}", Settings.HostName);
-                var ingressYamlPath = $"ingress_{DateTime.Now.Ticks}.yml";
-                await System.IO.File.WriteAllTextAsync(ingressYamlPath, ingressYamlText);
-                await Helpers.RunKubeCommand("STARTUP", $"apply -f {ingressYamlPath}");
+                    
+                tasks.Add(kube.ApplyAsync(ingressYamlText));
             }
 
-            var existingTerminalIngress = (await Helpers.RunKubeCommand("INGRESS", $"describe ingress/{Settings.KubeTermyTerminalIngressName} --namespace={Settings.KubeTerminalNamespace}")).Standard;
-            if(string.IsNullOrWhiteSpace(existingTerminalIngress))
+            var existingTerminalIngress = await kube.GetIngressesAsync(Settings.KubeTerminalNamespace).WithName(Settings.KubeTerminalIngressName);
+            if(existingTerminalIngress == null)
             {
                 // Create termy terminal ingress.
                 Helpers.Log("INGRESS", $"Applying terminal ingress dependency ...");
-                var terminalIngressYamlText = Settings.TermyTerminalIngressYamlTemplate
+                var terminalIngressYamlText = Settings.TerminalIngressYamlTemplate
                     .Replace("{{namespace}}", Settings.KubeTerminalNamespace);
-                var terminalIngressYamlPath = $"terminal_ingress_{DateTime.Now.Ticks}.yml";
-                await System.IO.File.WriteAllTextAsync(terminalIngressYamlPath, terminalIngressYamlText);
-                await Helpers.RunKubeCommand("STARTUP", $"apply -f {terminalIngressYamlPath}");
+                    
+                tasks.Add(kube.ApplyAsync(terminalIngressYamlText));
             }
 
             // Create the host script file.
-            await File.WriteAllTextAsync(Settings.TerminalHostStartScript, (await File.ReadAllTextAsync(Settings.TerminalHostStartScriptTemplate)).Replace("{{termyhostname}}", TermyClusterHostname));
+            tasks.Add(File.WriteAllTextAsync(Settings.TerminalHostStartScript, (await File.ReadAllTextAsync(Settings.TerminalHostStartScriptTemplate)).Replace("{{termyhostname}}", TermyClusterHostname)));
+
+            await Task.WhenAll(tasks);
         }
 
         public static async Task<T> RetryUntil<T>(string id, string name, Func<Task<T>> func, Func<T, bool> predicate, uint maxRetry = 60)
@@ -216,21 +196,5 @@ namespace Termy
         }
 
         public static string GetId() => new string(Guid.NewGuid().ToString().Take(6).ToArray());
-        
-        public static string IngressTemplate => @"
-            {
-                ""host"": ""{{host}}"",
-                ""http"": {
-                    ""paths"": [
-                        {
-                            ""backend"": {
-                                ""serviceName"": ""{{serviceName}}"",
-                                ""servicePort"": {{servicePort}}
-                            }
-                        }
-                    ]
-                }
-            }
-        ";
     }
 }

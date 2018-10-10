@@ -35,7 +35,7 @@ namespace Termy
         public static readonly string KubeTerminalNamespace = "termy-terminals";
         public static readonly string KubeTermyServiceName = "termy-svc";
         public static readonly string KubeTermyIngressName = "termy-in";
-        public static readonly string KubeTermyTerminalIngressName = "termy-terminal-in";
+        public static readonly string KubeTerminalIngressName = "termy-terminal-in";
 
         #endregion
 
@@ -43,8 +43,9 @@ namespace Termy
 
         public static readonly string TermyServiceYamlTemplate = File.ReadAllText("assets/termy-service.yml");
         public static readonly string TermyIngressYamlTemplate = File.ReadAllText("assets/termy-ingress.yml");
-        public static readonly string TermyTerminalIngressYamlTemplate = File.ReadAllText("assets/termy-terminal-ingress.yml");
-        public static readonly string TerminalYamlTemplate = File.ReadAllText("assets/termy-terminal-host.yml");
+        public static readonly string TerminalIngressYamlTemplate = File.ReadAllText("assets/terminal-ingress.yml");
+        public static readonly string TerminalServiceYamlTemplate = File.ReadAllText("assets/terminal-service.yml");
+        public static readonly string TerminalYamlTemplate = File.ReadAllText("assets/terminal.yml");
 
         #endregion
 

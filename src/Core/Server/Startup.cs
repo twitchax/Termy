@@ -11,6 +11,8 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Termy.Models;
+using Termy.Services;
 
 namespace Termy
 {
@@ -31,11 +33,17 @@ namespace Termy
                 {
                     options.SerializerSettings.Formatting = Formatting.Indented;
                 });
+
+            services.AddTransient<IKubernetesService>((sp) => new KubernetesService(Settings.KubeConfigPath));
+            services.AddSingleton<INodeStats>(sp => new NodeStats());
+            services.AddHostedService<WorkerHostedService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IKubernetesService kube)
         {
+            // App builder stuff.
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -52,6 +60,10 @@ namespace Termy
             });
 
             app.UseMvc();
+
+            // Custom startup stuff.
+            
+            Helpers.EnsureDependencies(kube);
         }
     }
 }

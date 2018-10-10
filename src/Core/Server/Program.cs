@@ -17,10 +17,6 @@ namespace Termy
     {
         public static void Main(string[] args)
         {
-            Helpers.EnsureDependencies();
-            Workers.StartNodeActivityWorker();
-            //Workers.StartCertbotWorker();
-            
             BuildWebHost(args).Run();
         }
 
@@ -31,14 +27,6 @@ namespace Termy
                 .UseKestrel(options => 
                 {
                     options.Listen(IPAddress.Any, 80);
-                    // options.Listen(IPAddress.Any, 443, listenOptions =>
-                    // {
-                    //     listenOptions.UseHttps(new HttpsConnectionAdapterOptions
-                    //     {
-                    //         ServerCertificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(Settings.CertFile, Settings.CertPassword), 
-                    //         SslProtocols = SslProtocols.Tls12
-                    //     });
-                    // });
                 }).Build();
     }
 }

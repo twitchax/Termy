@@ -1,0 +1,19 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{name}}
+  labels:
+    terminal-run: {{name}}
+  namespace: {{namespace}}
+spec:
+  selector:
+    terminal-run: {{name}}
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  - name: terminal
+    protocol: TCP
+    port: {{port}}
+    targetPort: {{port}}

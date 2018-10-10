@@ -6,22 +6,33 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using k8s;
+using k8s.Models;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Termy.Models;
+using Termy.Services;
 
-// TODO: Move all k8s calls to C# API.
-// TODO: [Termy] Move to json => transform json => move to kube API.
-// TODO: Let user keep their own entrypoint in Termy since  using postStart hook.
+// TODO: Move startup workers to hosted service (https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-2.1).
+//      Put the "run once" in configure?
+// TODO: Add ASP.NET Core logging.
+// TODO: Move to json => transform json.
+// TODO: Let user keep their own entrypoint in Termy since using postStart hook.
+// TODO: Explore DI for Settings?
 
 namespace Termy.Controllers
 {
     public class TermyController : BaseController
     {
+        public TermyController(IKubernetesService kube, INodeStats nodeStats) : base(kube, nodeStats)
+        {
+        }
+
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("3.3.0");
+            return Ok("3.4.0");
         }
 
         [HttpGet("/api/terminal")]
@@ -30,7 +41,7 @@ namespace Termy.Controllers
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetTerminals)} ...");
 
-            var terminals = (await Helpers.KubeClient.ListNamespacedDeploymentWithHttpMessagesAsync(Settings.KubeTerminalNamespace)).Body.Items.Select(t => {
+            var terminals = (await Kube.GetDeploymentsAsync(Settings.KubeTerminalNamespace)).Select(t => {
                 var name = t.Metadata.Name;
                 var cnames = Helpers.ResolveCnames(t.Metadata.Annotations["cnames"]);
 
@@ -51,10 +62,16 @@ namespace Termy.Controllers
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetTerminal)} ...");
 
-            var (terminals, error) = await Helpers.RunKubeCommand(id, $"get services {name} --namespace={Settings.KubeTerminalNamespace}");
+            var terminalService = await Kube.GetDeploymentsAsync(Settings.KubeTerminalNamespace).WithName(name);
+            
+            var response = new TerminalResponse {
+                Name = name,
+                Replicas = terminalService.Status.AvailableReplicas, 
+                CnameMaps = Helpers.ResolveCnames(terminalService.Metadata.Annotations["cnames"])
+            };
 
             Helpers.Log(id, $"Done.");
-            return Ok(terminals);
+            return Ok(response);
         }
 
         [HttpDelete("/api/terminal")]
@@ -66,17 +83,16 @@ namespace Termy.Controllers
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(DeleteTerminals)} ...");
 
-            // Remove all ingress entries.
-            await Helpers.TransformTerminalIngress(id, ingressJson => {
-                // NOTE: This `where` clause specifies which ingress rules to KEEP.
-                ingressJson["spec"]["rules"] = new JArray((ingressJson["spec"]["rules"] as JArray).Where(r => {
-                    var host = (r as JObject).Value<string>("host");
-                    return host == "none.com";
-                }));
+            // Remove all ingress entries (except for the "dummy" one).
+            await Kube.TransformIngressAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace, i => {
+                i.Spec.Rules = i.Spec.Rules.Where(r => r.Host == "none.com").ToList();
             });
 
             // Delete all deployments and services in namespace.
-            await Helpers.RunKubeCommand(id, $"delete deployment,service --namespace={Settings.KubeTerminalNamespace} --all");
+            await Task.WhenAll(
+                Kube.DeleteAllServicesAsync(Settings.KubeTerminalNamespace), 
+                Kube.DeleteAllDeploymentsAsync(Settings.KubeTerminalNamespace)
+            );
 
             Helpers.Log(id, $"Done.");
             return Ok();
@@ -92,20 +108,23 @@ namespace Termy.Controllers
             Helpers.Log(id, $"Starting {nameof(DeleteTerminal)} ...");
 
             // Get cnames for deployment.
-            var (cnamesString, _) = await Helpers.RunKubeCommand(id, $"get deployment/{name} --namespace={Settings.KubeTerminalNamespace} -o=jsonpath='{{.metadata.annotations.cnames}}'");
+            var cnamesString = (await Kube.GetDeploymentsAsync(Settings.KubeTerminalNamespace).WithName(name)).Metadata.Annotations["cnames"];
             var cnames = Helpers.ResolveCnames(cnamesString).ToList();
 
             // Remove all hosts and CNAMEs from ingress.
-            await Helpers.TransformTerminalIngress(id, ingressJson => {
-                // NOTE: This `where` clause specifies which ingress rules to KEEP.
-                ingressJson["spec"]["rules"] = new JArray((ingressJson["spec"]["rules"] as JArray).Where(r => {
-                    var host = (r as JObject).Value<string>("host").Split(".").First();
-                    return host != name && host != $"{Settings.TerminalDomainNamePrefix}{name}" && !cnames.Select(c => c.Name).Contains(host);
-                }));
+            await Kube.TransformIngressAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace, i => {
+                i.Spec.Rules = i.Spec.Rules.Where(r => 
+                    r.Host != name && 
+                    r.Host != $"{Settings.TerminalDomainNamePrefix}{name}" && 
+                    !cnames.Select(c => c.Name).Contains(r.Host)
+                ).ToList();
             });
 
             // Delete deployment and service.
-            await Helpers.RunKubeCommand(id, $"delete deployment,service {name} --namespace={Settings.KubeTerminalNamespace}");
+            await Task.WhenAll(
+                Kube.DeleteServiceAsync(name, Settings.KubeTerminalNamespace), 
+                Kube.DeleteDeploymentAsync(name, Settings.KubeTerminalNamespace)
+            );
             
             Helpers.Log(id, $"Done.");
             return Ok();
@@ -143,8 +162,8 @@ namespace Termy.Controllers
                 Helpers.Log(id, $"Failed: bad name: began with `{Settings.TerminalDomainNamePrefix}`.");
                 return this.BadRequest($"The name must not begin with `{Settings.TerminalDomainNamePrefix}`.");
             }
-            var existing = (await Helpers.RunKubeCommand(id, $"describe services/{request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard;
-            if(!string.IsNullOrWhiteSpace(existing))
+            var existing = await Kube.GetServicesAsync(Settings.KubeTerminalNamespace).WithName(request.Name);
+            if(existing != null)
             {
                 Helpers.Log(id, $"Failed: terminal name already exists.");
                 return this.BadRequest("A terminal with this name already exists.");
@@ -164,6 +183,12 @@ namespace Termy.Controllers
 
             // Create yaml for kube deployment.
             Helpers.Log(id, $"Creating k8s yaml ...");
+
+            var terminalServiceYamlText = Settings.TerminalServiceYamlTemplate
+                .Replace("{{name}}", request.Name)
+                .Replace("{{namespace}}", Settings.KubeTerminalNamespace)
+                .Replace("{{port}}", Settings.DefaultTerminalPtyPort.ToString());
+
             var terminalYamlText = Settings.TerminalYamlTemplate
                 .Replace("{{name}}", request.Name)
                 .Replace("{{namespace}}", Settings.KubeTerminalNamespace)
@@ -174,36 +199,21 @@ namespace Termy.Controllers
                 .Replace("{{port}}", Settings.DefaultTerminalPtyPort.ToString())
                 .Replace("{{cnames}}", string.Join(" ", cnames))
                 .Replace("{{termyhostname}}", Helpers.TermyClusterHostname);
-            var terminalYamlPath = $"deployments/{request.Name}_{DateTime.Now.Ticks}.yml";
-            await System.IO.File.WriteAllTextAsync(terminalYamlPath, terminalYamlText);
-
-            // Apply deployment.
-            Helpers.Log(id, $"Applying k8s deployment ...");
-            await Helpers.RunKubeCommand(id, $"apply -f {terminalYamlPath}");
-            await Helpers.RetryUntil(id, "deployment", async () => {
-                var deployments = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get deploy/{request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard);
-
-                return deployments?.FirstOrDefault()?.Value<string>("available");
-            }, val => val != "0");
-            var podName = Helpers.TextToJArray((await Helpers.RunKubeCommand(id, $"get pods -l=terminal-run={request.Name} --namespace={Settings.KubeTerminalNamespace}")).Standard).FirstOrDefault().Value<string>("name");
-            Helpers.Log(id, $"Pod name is `{podName}`.");
 
             // TODO: Update the YAML to create a dummy service, and open all of the ports found in the CNAMEs (similar to the way ingress rules are applied).
 
-            // Add to the ingress configuration.
-            await Helpers.TransformTerminalIngress(id, ingressJson => {
-                foreach (var cname in cnames)
-                {
-                    var newEntry = JObject.Parse(
-                        Helpers.IngressTemplate
-                            .Replace("{{host}}", cname.Name)
-                            .Replace("{{serviceName}}", request.Name)
-                            .Replace("{{servicePort}}", cname.Port.ToString())
-                    );
+            // Apply deployment.
+            Helpers.Log(id, $"Applying k8s deployment ...");
+            await Kube.ApplyAsync(terminalServiceYamlText);
+            await Kube.ApplyAsync(terminalYamlText);
 
-                    (ingressJson["spec"]["rules"] as JArray).Add(newEntry);
-                }
-            });
+            // Add to the ingress configuration.
+            await Kube.AddIngressRuleAsync(
+                Settings.KubeTerminalIngressName, 
+                Settings.KubeTerminalNamespace, 
+                request.Name,
+                cnames.Select(c => (c.Name, c.Port))
+            );
             
             // Finalize.
             Helpers.Log(id, $"Done.");
@@ -216,7 +226,7 @@ namespace Termy.Controllers
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetNodeStats)} ...");
 
-            var nodeStats = Workers.NodeStats;
+            var nodeStats = this.NodeStats;
 
             Helpers.Log(id, $"Done.");
             return Ok(nodeStats);
@@ -233,42 +243,5 @@ namespace Termy.Controllers
 
             return this.Unauthorized();
         }
-    }
-
-    public class CreateTerminalRequest
-    {
-        [Required]
-        public string Name { get; set; }
-        [Required]
-        public string Image { get; set; }
-        
-        public string Cnames { get; set; } = "";
-        public string Password { get; set; } = "null";
-        public string Shell { get; set; } = "/bin/bash";
-        public string Command { get; set; } = "while true; do sleep 30; done;";
-    }
-
-    public class TerminalResponse
-    {
-        public string Name { get; set; }
-        public int? Replicas { get; set; }
-        public IEnumerable<CnameMap> CnameMaps { get; set;}
-    }
-
-    public class CnameMap
-    {
-        public string Name { get; set; }
-        public int Port { get; set; }
-
-        public override string ToString()
-        {
-            return $"{this.Name}:{this.Port}";
-        }
-    }
-
-    public class KillRequest
-    {
-        [Required]
-        public string AdminPassword { get; set; }
     }
 }
