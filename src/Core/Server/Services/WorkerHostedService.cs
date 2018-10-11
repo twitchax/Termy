@@ -12,10 +12,6 @@ namespace Termy.Services
 {
     public class WorkerHostedService : IHostedService, IDisposable
     {
-        // TODO: Move these to settings.
-        private static readonly int UPDATE_INTERVAL_IN_SECONDS = 10;
-        private static readonly int QUEUE_LENGTH = 2 /* hours */ * 60 /* minutes/hr */ * 60 /* seconds/minute */ / UPDATE_INTERVAL_IN_SECONDS;
-
         private IKubernetesService _kube;
         private INodeStats _nodeStats;
         private Timer _timer;
@@ -28,7 +24,7 @@ namespace Termy.Services
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromSeconds(UPDATE_INTERVAL_IN_SECONDS));
+            _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromSeconds(Settings.WorkerUpdateIntervalInSeconds));
 
             return Task.CompletedTask;
         }
@@ -42,7 +38,7 @@ namespace Termy.Services
                 foreach(var node in nodeStats)
                 {
                     if(!_nodeStats.ContainsKey(node.Name))
-                        _nodeStats.Add(node.Name, new FixedSizedQueue<NodeStat>(QUEUE_LENGTH));
+                        _nodeStats.Add(node.Name, new FixedSizedQueue<NodeStat>(Settings.WorkerQueueLength));
 
                     _nodeStats[node.Name].Enqueue(node);
                 }

@@ -29,6 +29,13 @@ namespace Termy
 
         #endregion
 
+        #region Work Constances
+
+        public static readonly int WorkerUpdateIntervalInSeconds = 10;
+        public static readonly int WorkerQueueLength = 2 /* hours */ * 60 /* minutes/hr */ * 60 /* seconds/minute */ / WorkerUpdateIntervalInSeconds;
+
+        #endregion
+
         #region Kubernetes Constants
 
         public static readonly string KubeNamespace = "termy";
