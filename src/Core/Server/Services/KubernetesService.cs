@@ -226,6 +226,34 @@ namespace Termy.Services
             return (await apiCallTask).FirstOrDefault(o => (o as dynamic).Metadata.Name == name);
         }
 
+        public static void SetPorts(this V1Service service, IEnumerable<(string Host, int Port)> cnames)
+        {
+            service.Spec.Ports = new List<V1ServicePort>();
+            foreach(var cname in cnames)
+            {
+                service.Spec.Ports.Add(new V1ServicePort {
+                    Name = cname.Host.Replace(".", "-").ToLower(),
+                    Protocol = "TCP",
+                    Port = cname.Port,
+                    TargetPort = cname.Port
+                });
+            }
+        }
+
+        public static void SetPorts(this Extensionsv1beta1Deployment deployment, IEnumerable<(string Host, int Port)> cnames)
+        {
+            foreach(var container in deployment.Spec.Template.Spec.Containers)
+            {
+                container.Ports = new List<V1ContainerPort>();
+                foreach(var cname in cnames)
+                {
+                    container.Ports.Add(new V1ContainerPort {
+                        ContainerPort = cname.Port,
+                    });
+                }
+            }
+        }
+
         public static T LoadFromString<T>(this IKubernetesService service, string content) {
             // Hack fix for k8s library bug.
             content = content

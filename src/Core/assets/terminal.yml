@@ -29,14 +29,11 @@ spec:
               command: ["/bin/bash", "-c", "--", "mkdir /terminal-host; apt-get update; apt-get install -y curl; curl {{termyhostname}}/assets/start-terminal-host.sh > /terminal-host/start-terminal-host.sh; chmod a+x /terminal-host/start-terminal-host.sh; /terminal-host/start-terminal-host.sh;"]
         env:
         - name: TERMY_PORT
-          value: "{{port}}"
+          value: "{{ptyPort}}"
         - name: TERMY_PASSWORD
           value: "{{password}}"
         - name: TERMY_SHELL
           value: "{{shell}}"
-        ports:
-        - containerPort: 80
-        - containerPort: {{port}}
         volumeMounts:
         - name: secrets
           readOnly: true

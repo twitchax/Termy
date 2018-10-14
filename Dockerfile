@@ -37,17 +37,27 @@ WORKDIR /builder
 COPY ${source}/src/Core/package.json .
 COPY ${source}/src/Core/package-lock.json .
 RUN npm install
-#COPY ${source}/src/Core/Termy.csproj .
-#RUN dotnet restore
 
 # Run the termy build in a builder.
 FROM builderimg as builder
 ARG source
 ARG config="Release"
 WORKDIR /builder
-COPY ${source}/src/Core .
+
 COPY --from=packagebuilder /builder/node_modules node_modules
-RUN if [ "${config}" = "Release" ]; then npm run build; else npm run builddebug; fi
+COPY ${source}/src/Core/package.json .
+COPY ${source}/src/Core/package-lock.json .
+COPY ${source}/src/Core/tsconfig.json .
+
+COPY ${source}/src/Core/Client ./Client
+COPY ${source}/src/Core/index.html .
+RUN npm run buildclient
+
+COPY ${source}/src/Core/Termy.csproj .
+RUN dotnet restore
+
+COPY ${source}/src/Core .
+RUN dotnet publish -c ${config}
 
 # Run the terminal host build in a builder.
 FROM hostbuilderimg as hostbuilder
