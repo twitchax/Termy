@@ -18,6 +18,7 @@ using Termy.Services;
 // TODO: Let user keep their own entrypoint in Termy since using postStart hook (this means allowing them to also specify environment variables).
 //   Choose: your entry point, default entrypoint, custom entrypoint.
 // TODO: Explore DI for Settings?
+// Make polling mechanisms background web workers.
 
 namespace Termy.Controllers
 {
@@ -177,7 +178,21 @@ namespace Termy.Controllers
             cnames.Insert(0, new CnameMap { Name = $"{Settings.TerminalDomainNamePrefix}{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalPtyPort });
             cnames.Insert(0, new CnameMap { Name = $"{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalHttpPort });
 
-            // TODO: Check that there are no duplicate CNAMEs in this list, and check that there are no duplicate CNAMEs in the ingress.
+            // Ensure no host names clash.
+            var allHosts = cnames.Select(c => c.Name).ToList().AddRangeWithDaisy(await Kube.GetIngressHostsAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace));
+            if(allHosts.AreAnyDuplicates())
+            {
+                Helpers.Log(id, $"Failed: provided CNAMEs have duplicates or clash with existing host names.");
+                return this.BadRequest("Provided CNAMEs have duplicates or clash with existing host names.");
+            }
+
+            // Add to the ingress configuration.
+            await Kube.AddIngressRuleAsync(
+                Settings.KubeTerminalIngressName,
+                Settings.KubeTerminalNamespace,
+                request.Name,
+                cnames.Select(c => (c.Name, c.Port))
+            );
 
             // Create yaml for kube deployment.
             Helpers.Log(id, $"Creating k8s yaml ...");
@@ -207,14 +222,6 @@ namespace Termy.Controllers
             Helpers.Log(id, $"Applying k8s deployment ...");
             await Kube.CreateServiceAsync(Settings.KubeTerminalNamespace, service);
             await Kube.CreateDeploymentAsync(Settings.KubeTerminalNamespace, deployment);
-
-            // Add to the ingress configuration.
-            await Kube.AddIngressRuleAsync(
-                Settings.KubeTerminalIngressName, 
-                Settings.KubeTerminalNamespace, 
-                request.Name,
-                cnames.Select(c => (c.Name, c.Port))
-            );
             
             // Finalize.
             Helpers.Log(id, $"Done.");

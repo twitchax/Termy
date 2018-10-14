@@ -197,4 +197,19 @@ namespace Termy
 
         public static string GetId() => new string(Guid.NewGuid().ToString().Take(6).ToArray());
     }
+
+    public static class Extensions
+    {
+        public static List<T> AddRangeWithDaisy<T>(this List<T> list, IEnumerable<T> other)
+        {
+            list.AddRange(other);
+            return list;
+        }
+
+        public static bool AreAnyDuplicates<T>(this IEnumerable<T> list)
+        {
+            var set = new HashSet<T>();
+            return list.Any(e => !set.Add(e));
+        }
+    }
 }

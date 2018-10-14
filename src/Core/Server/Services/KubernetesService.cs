@@ -21,12 +21,13 @@ namespace Termy.Services
         Task ApplyAsync(string yaml);
 
         // Read.
-        Task<IList<V1Deployment>> GetDeploymentsAsync(string ns = null);
-        Task<IList<V1Service>> GetServicesAsync(string ns = null);
-        Task<IList<V1beta1Ingress>> GetIngressesAsync(string ns = null);
-        Task<IList<V1Pod>> GetPodsAsync(string ns = null, string labelSelector = null);
-        Task<IList<V1Node>> GetNodesAsync();
-        Task<IList<NodeStat>> GetNodeStatsAsync();
+        Task<IEnumerable<V1Deployment>> GetDeploymentsAsync(string ns = null);
+        Task<IEnumerable<V1Service>> GetServicesAsync(string ns = null);
+        Task<IEnumerable<V1beta1Ingress>> GetIngressesAsync(string ns = null);
+        Task<IEnumerable<string>> GetIngressHostsAsync(string name, string ns);
+        Task<IEnumerable<V1Pod>> GetPodsAsync(string ns = null, string labelSelector = null);
+        Task<IEnumerable<V1Node>> GetNodesAsync();
+        Task<IEnumerable<NodeStat>> GetNodeStatsAsync();
 
         // Update.
         Task<V1beta1Ingress> TransformIngressAsync(string name, string ns, Action<V1beta1Ingress> transform);
@@ -35,8 +36,8 @@ namespace Termy.Services
         // Delete.
         Task<V1Status> DeleteDeploymentAsync(string name, string ns);
         Task<V1Status> DeleteServiceAsync(string name, string ns);
-        Task<IList<V1Status>> DeleteAllServicesAsync(string ns);
-        Task<IList<V1Status>> DeleteAllDeploymentsAsync(string ns);
+        Task<IEnumerable<V1Status>> DeleteAllServicesAsync(string ns);
+        Task<IEnumerable<V1Status>> DeleteAllDeploymentsAsync(string ns);
     }
 
     public class KubernetesService : IKubernetesService
@@ -84,7 +85,7 @@ namespace Termy.Services
 
         #region Read
 
-        public async Task<IList<V1Deployment>> GetDeploymentsAsync(string ns = null)
+        public async Task<IEnumerable<V1Deployment>> GetDeploymentsAsync(string ns = null)
         {
             if(ns == null)
                 return (await _kubeClient.ListDeploymentForAllNamespacesAsync()).Items;
@@ -92,7 +93,7 @@ namespace Termy.Services
             return (await _kubeClient.ListNamespacedDeploymentAsync(ns)).Items;
         }
 
-        public async Task<IList<V1Service>> GetServicesAsync(string ns = null)
+        public async Task<IEnumerable<V1Service>> GetServicesAsync(string ns = null)
         {
             if(ns == null)
                 return (await _kubeClient.ListServiceForAllNamespacesAsync()).Items;
@@ -100,7 +101,7 @@ namespace Termy.Services
             return (await _kubeClient.ListNamespacedServiceAsync(ns)).Items;
         }
 
-        public async Task<IList<V1beta1Ingress>> GetIngressesAsync(string ns = null)
+        public async Task<IEnumerable<V1beta1Ingress>> GetIngressesAsync(string ns = null)
         {
             if(ns == null)
                 return (await _kubeClient.ListIngressForAllNamespacesAsync()).Items;
@@ -108,7 +109,12 @@ namespace Termy.Services
             return (await _kubeClient.ListNamespacedIngressAsync(ns)).Items;
         }
 
-        public async Task<IList<V1Pod>> GetPodsAsync(string ns = null, string labelSelector = null)
+        public async Task<IEnumerable<string>> GetIngressHostsAsync(string name, string ns)
+        {
+            return (await GetIngressesAsync(ns).WithName(name)).Spec.Rules.Select(r => r.Host);
+        }
+
+        public async Task<IEnumerable<V1Pod>> GetPodsAsync(string ns = null, string labelSelector = null)
         {
             if(ns == null)
                 return (await _kubeClient.ListPodForAllNamespacesAsync(labelSelector: labelSelector)).Items;
@@ -116,12 +122,12 @@ namespace Termy.Services
             return (await _kubeClient.ListNamespacedPodAsync(ns, labelSelector: labelSelector)).Items;
         }
 
-        public async Task<IList<V1Node>> GetNodesAsync()
+        public async Task<IEnumerable<V1Node>> GetNodesAsync()
         {
             return (await _kubeClient.ListNodeAsync()).Items;
         }
 
-        public async Task<IList<NodeStat>> GetNodeStatsAsync()
+        public async Task<IEnumerable<NodeStat>> GetNodeStatsAsync()
         {
             var (nodes, _) = await this.RunKubeCommand("NODE ACTIVITY WORKER", "top node");
 
@@ -186,14 +192,14 @@ namespace Termy.Services
             return _kubeClient.DeleteNamespacedServiceAsync(new V1DeleteOptions(), name, ns);
         }
 
-        public async Task<IList<V1Status>> DeleteAllServicesAsync(string ns)
+        public async Task<IEnumerable<V1Status>> DeleteAllServicesAsync(string ns)
         {
             var tasks = (await this.GetServicesAsync(ns)).Select(s => DeleteServiceAsync(s.Metadata.Name, ns));
 
             return (await Task.WhenAll(tasks)).ToList();
         }
 
-        public async Task<IList<V1Status>> DeleteAllDeploymentsAsync(string ns)
+        public async Task<IEnumerable<V1Status>> DeleteAllDeploymentsAsync(string ns)
         {
             var tasks = (await this.GetDeploymentsAsync(ns)).Select(s => DeleteDeploymentAsync(s.Metadata.Name, ns));
 
@@ -214,7 +220,7 @@ namespace Termy.Services
 
     public static class KubernetesExtensions
     {
-        public static async Task<T> WithName<T>(this Task<IList<T>> apiCallTask, string name) where T : IKubernetesObject
+        public static async Task<T> WithName<T>(this Task<IEnumerable<T>> apiCallTask, string name) where T : IKubernetesObject
         {
             // Would not have to use dynamic if the k8s API had proper inheritance.
             return (await apiCallTask).FirstOrDefault(o => (o as dynamic).Metadata.Name == name);
