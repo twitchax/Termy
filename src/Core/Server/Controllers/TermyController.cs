@@ -14,11 +14,9 @@ using Newtonsoft.Json.Linq;
 using Termy.Models;
 using Termy.Services;
 
-// TODO: Move startup workers to hosted service (https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-2.1).
-//      Put the "run once" in configure?
-// TODO: Add ASP.NET Core logging.
-// TODO: Move to json => transform json.
-// TODO: Let user keep their own entrypoint in Termy since using postStart hook.
+// TODO: Add ASP.NET Core logging (https://docs.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-2.1).
+// TODO: Let user keep their own entrypoint in Termy since using postStart hook (this means allowing them to also specify environment variables).
+//   Choose: your entry point, default entrypoint, custom entrypoint.
 // TODO: Explore DI for Settings?
 
 namespace Termy.Controllers
@@ -200,12 +198,15 @@ namespace Termy.Controllers
                 .Replace("{{cnames}}", string.Join(" ", cnames))
                 .Replace("{{termyhostname}}", Helpers.TermyClusterHostname);
 
-            // TODO: Update the YAML to create a dummy service, and open all of the ports found in the CNAMEs (similar to the way ingress rules are applied).
+            var service = Kube.LoadFromString<V1Service>(terminalServiceYamlText);
+            var deployment = Kube.LoadFromString<Extensionsv1beta1Deployment>(terminalYamlText);
 
+            // TODO: Open all of the ports found in the CNAMEs (similar to the way ingress rules are applied).
+            
             // Apply deployment.
             Helpers.Log(id, $"Applying k8s deployment ...");
-            await Kube.ApplyAsync(terminalServiceYamlText);
-            await Kube.ApplyAsync(terminalYamlText);
+            await Kube.CreateServiceAsync(Settings.KubeTerminalNamespace, service);
+            await Kube.CreateDeploymentAsync(Settings.KubeTerminalNamespace, deployment);
 
             // Add to the ingress configuration.
             await Kube.AddIngressRuleAsync(

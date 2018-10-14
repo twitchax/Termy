@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using k8s;
 using k8s.Models;
 using Termy.Models;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace Termy.Services
 {
@@ -216,6 +218,20 @@ namespace Termy.Services
         {
             // Would not have to use dynamic if the k8s API had proper inheritance.
             return (await apiCallTask).FirstOrDefault(o => (o as dynamic).Metadata.Name == name);
+        }
+
+        public static T LoadFromString<T>(this IKubernetesService service, string content) {
+            // Hack fix for k8s library bug.
+            content = content
+                .Replace("namespace: ", "namespaceProperty: ")
+                .Replace("readOnly: ", "readOnlyProperty: ");
+
+            var deserializer =
+                new DeserializerBuilder()
+                .WithNamingConvention(new CamelCaseNamingConvention())
+                .Build();
+            var obj = deserializer.Deserialize<T>(content);
+            return obj;
         }
     }
 }
