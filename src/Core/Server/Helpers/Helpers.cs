@@ -18,7 +18,12 @@ namespace Termy
 {
     public static class Helpers
     {
-        public static void Log(string id, string message) => Console.WriteLine($" [{id}] {message}");
+        public static void Log(string id, string message)
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($" [{id}] {message}");
+            Console.ResetColor();
+        }
 
         public static Task<(string Standard, string Error)> RunCertbotCommand(string id, string args)
         {
