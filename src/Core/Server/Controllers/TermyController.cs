@@ -15,12 +15,10 @@ using Newtonsoft.Json.Linq;
 using Termy.Models;
 using Termy.Services;
 
-// TODO: Split polymer and typescript build steps in Dockerfile away from dotnet.
 // TODO: Add ASP.NET Core logging (https://docs.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-2.1).
 // TODO: Let user keep their own entrypoint in Termy since using postStart hook (this means allowing them to also specify environment variables).
 //   Choose: your entry point, default entrypoint, custom entrypoint.
 // TODO: Explore DI for Settings?
-// TODO: Make polling mechanisms background web workers.
 // TODO: Allow resource requests?
 
 namespace Termy.Controllers

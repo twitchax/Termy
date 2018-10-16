@@ -44,19 +44,20 @@ ARG source
 ARG config="Release"
 WORKDIR /builder
 
-COPY --from=packagebuilder /builder/node_modules node_modules
+COPY --from=packagebuilder /builder/node_modules ./node_modules
 COPY ${source}/src/Core/package.json .
 COPY ${source}/src/Core/package-lock.json .
 COPY ${source}/src/Core/tsconfig.json .
-
+COPY ${source}/src/Core/polymer.json .
 COPY ${source}/src/Core/Client ./Client
 COPY ${source}/src/Core/index.html .
 RUN npm run buildclient
 
 COPY ${source}/src/Core/Termy.csproj .
 RUN dotnet restore
-
-COPY ${source}/src/Core .
+COPY ${source}/src/Core/assets ./assets
+COPY ${source}/src/Core/Server ./Server
+COPY ${source}/src/Core/appsettings.json .
 RUN dotnet publish -c ${config}
 
 # Run the terminal host build in a builder.

@@ -42,4 +42,50 @@ export function request<T>(obj: Request) {
 
         xhr.send(JSON.stringify(obj.body));
     });
-};
+}
+
+export class BackgroundWorker<T> {
+    private _worker: Worker;
+    private _hasOnMessage = false;
+    private _hasOnError = false;
+
+    constructor(worker: Worker) {
+        this._worker = worker;
+    }
+
+    static start<T>(workerFunc: () => void) {
+        return new BackgroundWorker<T>(BackgroundWorker._stringToWorker(`(${workerFunc.toString()})();`));
+    }
+
+    onMessage<T>(callback: (message: T) => void) {
+        if(this._hasOnMessage)
+        throw 'Only one instance of onMessage allowed.';
+
+        this._worker.onmessage = (ev) => {
+            callback(ev.data as T);
+        };
+
+        this._hasOnMessage = true;
+        
+        return this;
+    }
+
+    onError(callback: (message: any) => void) {
+        if(this._hasOnError)
+            throw 'Only one instance of onError allowed.';
+
+        this._worker.onerror = (ev) => {
+            callback(ev.error);
+        };
+
+        this._hasOnError = true;
+        
+        return this;
+    }
+
+    private static _stringToWorker(src: string) {
+        var response = src;
+        var blob = new Blob([response], {type: 'application/javascript'});
+        return new Worker(URL.createObjectURL(blob));
+    };
+}

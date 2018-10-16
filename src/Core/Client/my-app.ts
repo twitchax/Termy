@@ -31,8 +31,6 @@ export class MyApp extends PolymerElement {
     loading!: PaperSpinnerElement;
     @query('#terminalImage')
     terminalImage!: PaperInputElement;
-    //@query('#terminalPort')
-    //terminalPort!: PaperInputElement;
     @query('#terminalCnames')
     terminalCnames!: PaperInputElement;
     @query('#terminalPassword')
@@ -50,28 +48,32 @@ export class MyApp extends PolymerElement {
     nodeMemoryPercentData: any;
     chartAxis: any;
 
-    firstRun: boolean = true;
-
     ready() {
         super.ready();
 
-        this.setup();
-
-        // Start a timer to constantly get node statistics.
-        this.updateNodeStats();
-        setInterval(this.updateNodeStats.bind(this), 10000);
+        // Start a timer to constantly get terminals and node stats.
+        this.update();
+        setInterval(this.update.bind(this), 10000);
     }
 
-    private setup() {
-        // Get the list of running terminals.
-        this.showLoading(true);
-        request<Bll.Terminal[]>({ url: '/api/terminal' }).then(data => {
+    private async update() {
+        if(document.hidden)
+            return;
+
+        await this.updateTerminalList();
+        await this.updateNodeStats();
+
+        this.showLoading(false);
+    }
+
+    private updateTerminalList() {
+        return request<Bll.Terminal[]>({ url: '/api/terminal' }).then(data => {
             this.terminals = data;
-        }).catch(this.handleError.bind(this)).finally(this.showLoading.bind(this, false));
+        }).catch(this.handleError.bind(this));
     }
 
     private updateNodeStats() {
-        request<{ [name: string]: Bll.NodeStat[]; }>({ url: '/api/node/stats' }).then(nodes => {
+        return request<{ [name: string]: Bll.NodeStat[]; }>({ url: '/api/node/stats' }).then(nodes => {
             let cpuPercentColumns: (string | number)[][] = [];
             let memoryPercentColumns: (string | number)[][] = [];
             let xs = nodes[Object.keys(nodes)[0]].map(n => n.time);
@@ -89,7 +91,7 @@ export class MyApp extends PolymerElement {
             this.nodeMemoryPercentData = {
                 columns: memoryPercentColumns
             };
-        });
+        }).catch(this.handleError.bind(this));
     }
 
     private createTerminal() {
@@ -99,7 +101,7 @@ export class MyApp extends PolymerElement {
         this.suRequest({ url: '/api/terminal', method: 'POST', body: req }).then(() => {
             this.showToast(`Success!  Terminal '${req.name}' created.  Refreshing...`);
             this.clearCreateTerminalValues();
-        }).catch(this.handleError.bind(this)).finally(this.setup.bind(this));
+        }).catch(this.handleError.bind(this)).finally(this.update.bind(this));
     }
 
     private deleteTerminal(e: any | MouseEvent) {
@@ -109,7 +111,7 @@ export class MyApp extends PolymerElement {
         this.suRequest({ url: `/api/terminal/${terminalName}/`, method: 'DELETE' })
             .then(this.showToast.bind(this, `Success!  Terminal '${terminalName}' deleted.  Refreshing...`))
             .catch(this.handleError.bind(this))
-            .finally(this.setup.bind(this));
+            .finally(this.update.bind(this));
     }
 
     private deleteTerminals() {
@@ -117,7 +119,7 @@ export class MyApp extends PolymerElement {
         this.suRequest({ url: '/api/terminal', method: 'DELETE' })
             .then(this.showToast.bind(this, `Success!  Terminals deleted.  Refreshing...`))
             .catch(this.handleError.bind(this))
-            .finally(this.setup.bind(this));
+            .finally(this.update.bind(this));
     }
 
     private handleError(err: any): void {
@@ -141,7 +143,6 @@ export class MyApp extends PolymerElement {
         req.name = resolveString(this.terminalName.value) || '';
         req.image = resolveString(this.terminalImage.value) || '';
         req.cnames = resolveString(this.terminalCnames.value);
-        //req.port = resolveNumber(this.terminalPort.value);
         req.password = resolveString(this.terminalPassword.value);
         req.shell = resolveString(this.terminalShell.value);
         req.command = resolveString(this.terminalCommand.value);
@@ -205,8 +206,6 @@ export class MyApp extends PolymerElement {
                     <paper-input id="terminalName" label="Name" required auto-validate error-message="Required."></paper-input>
                     <paper-input id="terminalImage" label="Image" required auto-validate error-message="Required."></paper-input>
                     <paper-input id="terminalCnames" label="CNAMEs"></paper-input>
-                    <!-- Remove this for now, until k8s ingresses support port mappings. -->
-                    <!-- <paper-input id="terminalPort" label="Port"></paper-input> -->
                     <paper-input id="terminalPassword" label="Password" type="password"></paper-input>
                     <paper-input id="terminalShell" label="Shell"></paper-input>
                     <paper-textarea id="terminalCommand" label="Start Command"></paper-textarea>
