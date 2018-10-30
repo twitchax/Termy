@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Newtonsoft.Json;
 
 namespace Termy.Models
 {
@@ -42,7 +43,11 @@ namespace Termy.Models
         public string Cnames { get; set; } = "";
         public string Password { get; set; } = "null";
         public string Shell { get; set; } = "/bin/bash";
-        public string Command { get; set; } = "while true; do sleep 30; done;";
+        public string Entrypoint { get; set; } = "default";
+        public string EnvironmentVariables { get; set; } = "";
+        public string Command { get; set; } = "";
+
+        public static readonly IReadOnlyCollection<string> AllowedEntrypoints = new List<string> { "default", "container", "custom" }.AsReadOnly();
     }
 
     public class TerminalResponse
@@ -60,6 +65,17 @@ namespace Termy.Models
         public override string ToString()
         {
             return $"{this.Name}:{this.Port}";
+        }
+    }
+
+    public class EnvironmentVariable
+    {
+        public string Name { get; set; }
+        public string Value { get; set; }
+
+        public override string ToString()
+        {
+            return $"{this.Name}={this.Value}";
         }
     }
 

@@ -15,9 +15,7 @@ using Newtonsoft.Json.Linq;
 using Termy.Models;
 using Termy.Services;
 
-// TODO: Add ASP.NET Core logging (https://docs.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-2.1).
-// TODO: Let user keep their own entrypoint in Termy since using postStart hook (this means allowing them to also specify environment variables).
-//   Choose: your entry point, default entrypoint, custom entrypoint.
+// TODO: Explore DI for logging?
 // TODO: Explore DI for Settings?
 // TODO: Allow resource requests?
 
@@ -32,7 +30,7 @@ namespace Termy.Controllers
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("3.4.0");
+            return Ok("3.5.0");
         }
 
         [HttpGet("/api/terminal")]
@@ -131,7 +129,8 @@ namespace Termy.Controllers
             await Kube.TransformIngressAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace, i => {
                 i.Spec.Rules = i.Spec.Rules.Where(r => 
                     r.Host != name && 
-                    r.Host != $"{Settings.TerminalDomainNamePrefix}{name}" && 
+                    r.Host != $"{Settings.TerminalPtyDomainNamePrefix}{name}" && 
+                    r.Host != $"{Settings.TerminalSshDomainNamePrefix}{name}" && 
                     !cnames.Select(c => c.Name).Contains(r.Host)
                 ).ToList();
             });
@@ -162,47 +161,11 @@ namespace Termy.Controllers
             Helpers.Log(id, $"   CNAMEs: {request.Cnames}");
 
             Helpers.Log(id, $"Validating ...");
-
-            if(!ModelState.IsValid)
-            {
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-                return this.BadRequest(errors);
-            }
-            if(!new Regex("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$").IsMatch(request.Name))
-            {
-                Helpers.Log(id, $"Failed: bad name.");
-                return this.BadRequest("The name must match: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'.");
-            }
-            if(request.Name.StartsWith(Settings.TerminalDomainNamePrefix))
-            {
-                Helpers.Log(id, $"Failed: bad name: began with `{Settings.TerminalDomainNamePrefix}`.");
-                return this.BadRequest($"The name must not begin with `{Settings.TerminalDomainNamePrefix}`.");
-            }
-            var existing = await Kube.GetServicesAsync(Settings.KubeTerminalNamespace).WithName(request.Name);
-            if(existing != null)
-            {
-                Helpers.Log(id, $"Failed: terminal name already exists.");
-                return this.BadRequest("A terminal with this name already exists.");
-            }
-            if(!Helpers.IsCnamesValid(request.Cnames))
-            {
-                Helpers.Log(id, $"Failed: provided CNAMEs could not be parsed or are invalid.");
-                return this.BadRequest("Provided CNAMEs could not be parsed or are invalid.");
-            }
-
-            // Clean up CNAMEs and add default ones.
-            var cnames = Helpers.ResolveCnames(request.Cnames).ToList();
-            cnames.Insert(0, new CnameMap { Name = $"{Settings.TerminalDomainNamePrefix}{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalPtyPort });
-            cnames.Insert(0, new CnameMap { Name = $"{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalHttpPort });
-
-            // Ensure no host names clash.
-            var allHosts = cnames.Select(c => c.Name).ToList().AddRangeWithDaisy(await Kube.GetIngressHostsAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace));
-            if(allHosts.AreAnyDuplicates())
-            {
-                Helpers.Log(id, $"Failed: provided CNAMEs have duplicates or clash with existing host names.");
-                return this.BadRequest("Provided CNAMEs have duplicates or clash with existing host names.");
-            }
-
+            
+            var (valid, cnames, error) = await this.IsCreateTerminalRequestValid(id, request);
+            if(!valid)
+                return this.BadRequest(id, error);
+                
             // Create yaml for kube deployment.
             Helpers.Log(id, $"Creating k8s yaml ...");
 
@@ -214,19 +177,21 @@ namespace Termy.Controllers
                 .Replace("{{name}}", request.Name)
                 .Replace("{{namespace}}", Settings.KubeTerminalNamespace)
                 .Replace("{{image}}", request.Image)
-                .Replace("{{password}}", request.Password)
-                .Replace("{{shell}}", request.Shell)
+                .Replace("{{ptyPassword}}", request.Password)
+                .Replace("{{ptyShell}}", request.Shell)
                 .Replace("{{ptyPort}}", Settings.DefaultTerminalPtyPort.ToString())
-                .Replace("{{command}}", request.Command.Replace("\"", "\\\""))
                 .Replace("{{cnames}}", string.Join(" ", cnames))
                 .Replace("{{termyhostname}}", Helpers.TermyClusterHostname);
 
             var service = Kube.LoadFromString<V1Service>(terminalServiceYamlText);
             var deployment = Kube.LoadFromString<Extensionsv1beta1Deployment>(terminalYamlText);
 
+            // Set the proper startup commands.
+            deployment.SetStartup(request.Entrypoint, request.EnvironmentVariables, request.Command);
+
             // Open all requested ports.
-            service.SetPorts(cnames.Select(c => (c.Name, c.Port)));
-            deployment.SetPorts(cnames.Select(c => (c.Name, c.Port)));
+            service.SetPorts(cnames);
+            deployment.SetPorts(cnames);
             
             // Apply deployment.
             Helpers.Log(id, $"Applying k8s deployment ...");
@@ -285,6 +250,49 @@ namespace Termy.Controllers
             }
 
             return this.Unauthorized();
+        }
+
+        private async Task<(bool Valid, IEnumerable<CnameMap> cnames, string error)> IsCreateTerminalRequestValid(string id, CreateTerminalRequest request)
+        {
+            var errors = new List<string>();
+
+            if(!this.ModelState.IsValid)
+            {
+                errors.AddRange(this.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+                goto fail;
+            }
+
+            if(!new Regex("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$").IsMatch(request.Name))
+                errors.Add("The name must match: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'.");
+            if(request.Name.StartsWith(Settings.TerminalPtyDomainNamePrefix) || request.Name.StartsWith(Settings.TerminalSshDomainNamePrefix))
+                errors.Add($"The name must not begin with `{Settings.TerminalPtyDomainNamePrefix}` or `{Settings.TerminalSshDomainNamePrefix}`.");
+            if(!Helpers.IsCnamesValid(request.Cnames))
+                errors.Add("Provided CNAMEs could not be parsed or are invalid.");
+            if(!CreateTerminalRequest.AllowedEntrypoints.Contains(request.Entrypoint))
+                errors.Add($"The entrypoint value is invalid; must be: {string.Join(",", CreateTerminalRequest.AllowedEntrypoints)}.");
+            if(!Helpers.IsEnvironmentVariablesValid(request.EnvironmentVariables))
+                errors.Add("Provided environment variables could not be parsed.");
+            var existing = await Kube.GetServicesAsync(Settings.KubeTerminalNamespace).WithName(request.Name);
+            if(existing != null)
+                errors.Add("A terminal with this name already exists.");
+
+            // Clean up CNAMEs and add default ones.
+            var cnames = Helpers.ResolveCnames(request.Cnames).ToList();
+            // TODO: thhis would be cool, but it would require some tunnelling work.
+            //cnames.Insert(0, new CnameMap { Name = $"{Settings.TerminalSshDomainNamePrefix}{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalSshPort });
+            cnames.Insert(0, new CnameMap { Name = $"{Settings.TerminalPtyDomainNamePrefix}{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalPtyPort });
+            cnames.Insert(0, new CnameMap { Name = $"{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalHttpPort });
+
+            // Ensure no host names clash.
+            var allHosts = cnames.Select(c => c.Name).ToList().AddRangeWithDaisy(await Kube.GetIngressHostsAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace));
+            if(allHosts.AreAnyDuplicates())
+                errors.Add("Provided CNAMEs have duplicates or clash with existing host names.");
+
+            if(!errors.Any())
+                return (true, cnames, "");
+
+        fail:
+            return (false, null, string.Join("\n", errors));
         }
     }
 }

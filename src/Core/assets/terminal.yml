@@ -21,8 +21,8 @@ spec:
       - image: {{image}}
         name: {{name}}
         imagePullPolicy: Always
-        command: [ "/bin/bash", "-c", "--" ]
-        args: [ "{{command}}" ]
+        # command: [ "/bin/bash", "-c", "--" ]
+        # args: [ "{{command}}" ]
         lifecycle:
           postStart:
             exec:
@@ -31,9 +31,9 @@ spec:
         - name: TERMY_PORT
           value: "{{ptyPort}}"
         - name: TERMY_PASSWORD
-          value: "{{password}}"
+          value: "{{ptyPassword}}"
         - name: TERMY_SHELL
-          value: "{{shell}}"
+          value: "{{ptyShell}}"
         volumeMounts:
         - name: secrets
           readOnly: true

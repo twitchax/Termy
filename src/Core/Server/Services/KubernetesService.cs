@@ -1,5 +1,3 @@
-
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -226,13 +224,13 @@ namespace Termy.Services
             return (await apiCallTask).FirstOrDefault(o => (o as dynamic).Metadata.Name == name);
         }
 
-        public static void SetPorts(this V1Service service, IEnumerable<(string Host, int Port)> cnames)
+        public static void SetPorts(this V1Service service, IEnumerable<CnameMap> cnames)
         {
             service.Spec.Ports = new List<V1ServicePort>();
             foreach(var cname in cnames)
             {
                 service.Spec.Ports.Add(new V1ServicePort {
-                    Name = cname.Host.Replace(".", "-").ToLower(),
+                    Name = cname.Name.Replace(".", "-").ToLower(),
                     Protocol = "TCP",
                     Port = cname.Port,
                     TargetPort = cname.Port
@@ -240,7 +238,7 @@ namespace Termy.Services
             }
         }
 
-        public static void SetPorts(this Extensionsv1beta1Deployment deployment, IEnumerable<(string Host, int Port)> cnames)
+        public static void SetPorts(this Extensionsv1beta1Deployment deployment, IEnumerable<CnameMap> cnames)
         {
             foreach(var container in deployment.Spec.Template.Spec.Containers)
             {
@@ -250,6 +248,32 @@ namespace Termy.Services
                     container.Ports.Add(new V1ContainerPort {
                         ContainerPort = cname.Port,
                     });
+                }
+            }
+        }
+
+        public static void SetStartup(this Extensionsv1beta1Deployment deployment, string entrypoint, string environmentVariables, string command)
+        {
+            foreach(var container in deployment.Spec.Template.Spec.Containers)
+            {
+                foreach(var envVar in Helpers.ResolveEnvironmentVariables(environmentVariables))
+                    container.Env.Add(new V1EnvVar(envVar.Name, envVar.Value));
+
+                switch(entrypoint)
+                {
+                    case "default":
+                        container.Command = new List<string> { "/bin/bash", "-c", "--" };
+                        container.Args = new List<string> { "while true; do sleep 30; done;" };
+                        break;
+                    case "custom":
+                        container.Command = new List<string> { "/bin/bash", "-c", "--" };
+                        container.Args = new List<string> { command };
+                        break;
+                    case "container": 
+                        // Do nothing.  This defaults to the container's entrypoint.
+                        break;
+                    default:
+                        throw new Exception("This should never happen based on validation.");
                 }
             }
         }

@@ -23,9 +23,11 @@ namespace Termy
 
         #region Name Constants
 
-        public static readonly string TerminalDomainNamePrefix = "t-";
+        public static readonly string TerminalPtyDomainNamePrefix = "t-";
+        public static readonly string TerminalSshDomainNamePrefix = "ssh-";
         public static readonly int DefaultTerminalHttpPort = 80;
-        public static readonly int DefaultTerminalPtyPort = 22;
+        public static readonly int DefaultTerminalSshPort = 22;
+        public static readonly int DefaultTerminalPtyPort = 8022;
 
         #endregion
 

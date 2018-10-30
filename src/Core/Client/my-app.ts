@@ -4,6 +4,8 @@ import '@polymer/paper-item/paper-item';
 import '@polymer/paper-button/paper-button';
 import '@polymer/paper-toast/paper-toast';
 import '@polymer/paper-input/paper-input';
+import '@polymer/paper-radio-group/paper-radio-group';
+import '@polymer/paper-radio-button/paper-radio-button';
 import '@polymer/paper-input/paper-textarea';
 import '@polymer/paper-spinner/paper-spinner';
 import '@granite-elements/granite-c3';
@@ -11,6 +13,7 @@ import '@granite-elements/granite-c3';
 import { PolymerElement, html } from '@polymer/polymer/polymer-element';
 import { customElement, property, query } from "@polymer/decorators";
 import { PaperInputElement } from '@polymer/paper-input/paper-input';
+import { PaperRadioGroupElement } from '@polymer/paper-radio-group/paper-radio-group';
 import { PaperTextareaElement } from '@polymer/paper-input/paper-textarea';
 import { PaperToastElement } from '@polymer/paper-toast/paper-toast';
 import { PaperSpinnerElement } from '@polymer/paper-spinner/paper-spinner';
@@ -37,6 +40,10 @@ export class MyApp extends PolymerElement {
     terminalPassword!: PaperInputElement;
     @query('#terminalShell')
     terminalShell!: PaperInputElement;
+    @query('#terminalEntrypoint')
+    terminalEntrypoint!: PaperRadioGroupElement;
+    @query('#terminalEnvironmentVariables')
+    terminalEnvironmentVariables!: PaperTextareaElement;
     @query('#terminalCommand')
     terminalCommand!: PaperTextareaElement;
     @query('#toast')
@@ -47,9 +54,15 @@ export class MyApp extends PolymerElement {
     nodeCpuPercentData: any;
     nodeMemoryPercentData: any;
     chartAxis: any;
+    terminalEntrypointSelectedValue = "default";
 
     ready() {
         super.ready();
+
+        // Always make update requests on visibility change.
+        document.addEventListener('visibilitychange', () => {
+            this.update();
+        });
 
         // Start a timer to constantly get terminals and node stats.
         this.update();
@@ -145,6 +158,8 @@ export class MyApp extends PolymerElement {
         req.cnames = resolveString(this.terminalCnames.value);
         req.password = resolveString(this.terminalPassword.value);
         req.shell = resolveString(this.terminalShell.value);
+        req.entrypoint = resolveString(this.terminalEntrypoint.selected as string);
+        req.environmentVariables = resolveString(this.terminalEnvironmentVariables.value);
         req.command = resolveString(this.terminalCommand.value);
 
         return req;
@@ -170,6 +185,8 @@ export class MyApp extends PolymerElement {
         this.terminalCnames.value = undefined;
         this.terminalPassword.value = undefined;
         this.terminalShell.value = undefined;
+        this.terminalEntrypoint.selected = "default";
+        this.terminalEnvironmentVariables.value = undefined;
         this.terminalCommand.value = undefined;
 
         this.terminalName.invalid = false;
@@ -190,6 +207,10 @@ export class MyApp extends PolymerElement {
         this.loading.active = show;
     }
 
+    private isEntrypointCustom(terminalEntrypointSelectedValue: string) {
+        return terminalEntrypointSelectedValue === 'custom';
+    }
+
     static get template() {
         return html`
             <paper-toast duration="10000" id="toast"></paper-toast>
@@ -208,7 +229,17 @@ export class MyApp extends PolymerElement {
                     <paper-input id="terminalCnames" label="CNAMEs"></paper-input>
                     <paper-input id="terminalPassword" label="Password" type="password"></paper-input>
                     <paper-input id="terminalShell" label="Shell"></paper-input>
-                    <paper-textarea id="terminalCommand" label="Start Command"></paper-textarea>
+
+                    <br />Entrypoint<br />
+                    <paper-radio-group id="terminalEntrypoint" selected="{{terminalEntrypointSelectedValue}}">
+                        <paper-radio-button name="default">Default</paper-radio-button>
+                        <paper-radio-button name="container">Container</paper-radio-button>
+                        <paper-radio-button name="custom">Custom Script</paper-radio-button>
+                    </paper-radio-group>
+                    
+                    <paper-textarea id="terminalCommand" label="Start Command" hidden$="[[!isEntrypointCustom(terminalEntrypointSelectedValue)]]"></paper-textarea>
+                    <paper-textarea id="terminalEnvironmentVariables" label="Environment Variables"></paper-textarea>
+                    
 
                     <br />
                     <br />

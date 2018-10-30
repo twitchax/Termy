@@ -16,6 +16,8 @@ declare module Bll {
         password?: string;
         shell?: string;
         cnames?: string;
+        entrypoint?: string;
+        environmentVariables?: string;
         command?: string;
     }
 

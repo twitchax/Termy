@@ -32,9 +32,6 @@ let validatePassword = function (req, res, next) {
     }
 };
 
-//Create guest account.
-shelljs.exec(`useradd -m -s ${shell} guest`);
-
 // change 
 
 // Define app endpoints.
@@ -57,7 +54,7 @@ app.post('/terminals', validatePassword, function (req, res) {
     var rows = parseInt(req.query.rows);
     var cols = parseInt(req.query.cols);
     
-    var term = pty.spawn('su', ['guest'], {
+    var term = pty.spawn('su', ['-', 'guest'], {
         name: 'xterm-color',
         cols: cols || 80,
         rows: rows || 24,

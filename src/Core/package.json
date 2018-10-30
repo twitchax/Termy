@@ -19,6 +19,8 @@
     "@polymer/paper-card": "3.0.1",
     "@polymer/paper-input": "3.0.1",
     "@polymer/paper-item": "3.0.1",
+    "@polymer/paper-radio-button": "3.0.1",
+    "@polymer/paper-radio-group": "3.0.1",
     "@polymer/paper-spinner": "3.0.1",
     "@polymer/paper-toast": "3.0.1",
     "@polymer/polymer": "3.0.5",

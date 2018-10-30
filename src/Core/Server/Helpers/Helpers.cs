@@ -200,6 +200,46 @@ namespace Termy
             }
         }
 
+        public static bool IsEnvironmentVariablesValid(string environmentVariables)
+        {
+            try
+            {
+                ResolveEnvironmentVariables(environmentVariables);
+                return true;
+            }
+            catch(Exception)
+            {
+                return false;
+            }
+        }
+
+        public static IEnumerable<EnvironmentVariable> ResolveEnvironmentVariables(string environmentVariables)
+        {
+            try
+            {
+                if(string.IsNullOrWhiteSpace(environmentVariables))
+                    return new List<EnvironmentVariable>();
+                else
+                    return environmentVariables.Trim()
+                        .Split("\n")
+                        .Select(l => {
+                            var line = l.Trim();
+                            var firstEqualsIndex = line.IndexOf('=');
+                            var name = line.Substring(0, firstEqualsIndex).Trim();
+                            var value = line.Substring(firstEqualsIndex + 1).Trim();
+
+                            return new EnvironmentVariable {
+                                Name = name,
+                                Value = value
+                            };
+                        });
+            }
+            catch(Exception)
+            {
+                throw new Exception("Environment variables should be validated upon creation request: this should never happen.");
+            }
+        }
+
         public static string GetId() => new string(Guid.NewGuid().ToString().Take(6).ToArray());
     }
 

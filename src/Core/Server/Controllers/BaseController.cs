@@ -26,5 +26,11 @@ namespace Termy.Controllers
             Kube = kube;
             NodeStats = nodeStats;
         }
+
+        public BadRequestObjectResult BadRequest(string id, string error)
+        {
+            Helpers.Log(id, error);
+            return base.BadRequest(error);
+        }
     }
 }
