@@ -21,8 +21,6 @@ spec:
       - image: {{image}}
         name: {{name}}
         imagePullPolicy: Always
-        # command: [ "/bin/bash", "-c", "--" ]
-        # args: [ "{{command}}" ]
         lifecycle:
           postStart:
             exec:

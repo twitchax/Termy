@@ -15,6 +15,7 @@ using Newtonsoft.Json.Linq;
 using Termy.Models;
 using Termy.Services;
 
+// TODO: Change k8s authorization to an RBACed account that only has access to its own namespaces.
 // TODO: Explore DI for logging?
 // TODO: Explore DI for Settings?
 // TODO: Allow resource requests?
