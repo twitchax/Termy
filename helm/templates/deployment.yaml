@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: termy
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: termy-terminals
+---
+# TODO: Add service account and role binding (possibly also need role).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: termy-secrets
+  namespace: termy
+type: Opaque
+stringData:
+  hostname: {{ required "hostname is required" .Values.hostname }}
+  supw: {{ required "supw is required" .Values.supw }}
+  kubeconfig: |-
+{{ required "kubeconfig is required" .Values.kubeconfig | indent 4 }}
+  tls.crt: |-
+{{ required "tlscrt is required" .Values.tlscrt | indent 4 }}
+  tls.key: |-
+{{ required "tlskey is required" .Values.tlskey | indent 4 }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: termy-secrets
+  namespace: termy-terminals
+type: Opaque
+stringData:
+  supw: {{ .Values.supw }}
+  tls.crt: |-
+{{ .Values.tlscrt | indent 4 }}
+  tls.key: |-
+{{ .Values.tlskey | indent 4 }}
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  labels:
+    app: termy
+    app.kubernetes.io/name: {{ include "chart.name" . }}
+    helm.sh/chart: {{ include "chart.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  name: termy
+  namespace: termy
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: termy
+  template:
+    metadata:
+      labels:
+        app: termy
+    spec:
+      containers:
+      - name: termy
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: secrets
+          readOnly: true
+          mountPath: /etc/secrets
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+      volumes:
+      - name: secrets
+        secret:
+          secretName: termy-secrets

@@ -6,7 +6,7 @@ metadata:
   name: termy
   namespace: termy
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: termy
@@ -21,13 +21,10 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 80
-        - containerPort: 443
         volumeMounts:
         - name: secrets
           readOnly: true
           mountPath: /etc/secrets
-        securityContext:
-          privileged: true
       volumes:
       - name: secrets
         secret:

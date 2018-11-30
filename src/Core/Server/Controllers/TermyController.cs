@@ -15,7 +15,11 @@ using Newtonsoft.Json.Linq;
 using Termy.Models;
 using Termy.Services;
 
+// TODO: Use only one namespace and one ingress...and maybe change endpoint so you can just use `*.termy.in`.
+// TODO: Remove TLS dependency...that is something that kube admins should do.
 // TODO: Change k8s authorization to an RBACed account that only has access to its own namespaces.
+// TODO: Create a helm chart for this.
+// TODO: Allow multiple replicas.
 // TODO: Explore DI for logging?
 // TODO: Explore DI for Settings?
 // TODO: Allow resource requests?
