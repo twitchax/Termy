@@ -1,5 +1,0 @@
-apiVersion: v1
-appVersion: "3.5.0"
-description: A Helm chart for Termy.
-name: termy
-version: 3.5.0

@@ -36,6 +36,10 @@ spec:
         - name: secrets
           readOnly: true
           mountPath: /etc/secrets
+        resources:
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
       volumes:
       - name: secrets
         secret:

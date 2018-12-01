@@ -91,50 +91,11 @@ namespace Termy
 
         public static async void EnsureDependencies(IKubernetesService kube)
         {
-            var tasks = new List<Task>();
-
             // Ensure deployments directory exists.
             Directory.CreateDirectory("deployments");
 
-            // Ensure base services and ingresses exist.
-            var existingService = await kube.GetServicesAsync(Settings.KubeNamespace).WithName(Settings.KubeTermyServiceName);
-            if(existingService == null)
-            {
-                // Create termy service.
-                Helpers.Log("SERVICE", $"Applying service dependency ...");
-                var serviceYamlText = Settings.TermyServiceYamlTemplate
-                    .Replace("{{namespace}}", Settings.KubeNamespace);
-                
-                tasks.Add(kube.ApplyAsync(serviceYamlText));
-            }
-
-            var existingIngress = await kube.GetIngressesAsync(Settings.KubeNamespace).WithName(Settings.KubeTermyIngressName);
-            if(existingIngress == null)
-            {
-                // Create termy ingress.
-                Helpers.Log("INGRESS", $"Applying ingress dependency ...");
-                var ingressYamlText = Settings.TermyIngressYamlTemplate
-                    .Replace("{{namespace}}", Settings.KubeNamespace)
-                    .Replace("{{host}}", Settings.HostName);
-                    
-                tasks.Add(kube.ApplyAsync(ingressYamlText));
-            }
-
-            var existingTerminalIngress = await kube.GetIngressesAsync(Settings.KubeTerminalNamespace).WithName(Settings.KubeTerminalIngressName);
-            if(existingTerminalIngress == null)
-            {
-                // Create termy terminal ingress.
-                Helpers.Log("INGRESS", $"Applying terminal ingress dependency ...");
-                var terminalIngressYamlText = Settings.TerminalIngressYamlTemplate
-                    .Replace("{{namespace}}", Settings.KubeTerminalNamespace);
-                    
-                tasks.Add(kube.ApplyAsync(terminalIngressYamlText));
-            }
-
             // Create the host script file.
-            tasks.Add(File.WriteAllTextAsync(Settings.TerminalHostStartScript, (await File.ReadAllTextAsync(Settings.TerminalHostStartScriptTemplate)).Replace("{{termyhostname}}", TermyClusterHostname)));
-
-            await Task.WhenAll(tasks);
+            await File.WriteAllTextAsync(Settings.TerminalHostStartScript, (await File.ReadAllTextAsync(Settings.TerminalHostStartScriptTemplate)).Replace("{{termyhostname}}", TermyClusterHostname));
         }
 
         public static async Task<T> RetryUntil<T>(string id, string name, Func<Task<T>> func, Func<T, bool> predicate, uint maxRetry = 60)

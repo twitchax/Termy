@@ -16,7 +16,7 @@ if [ $TERMY_SHELL -ne "null" ]; then
 fi
 
 # Install openssh server.
-# apt-get update && apt-get install -y openssh-server || true
+#apt-get update && apt-get install -y openssh-server || true
 
 # Run terminal host server.
 chmod a+x /terminal-host/termy-terminal-host

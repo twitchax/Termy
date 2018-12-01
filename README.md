@@ -6,49 +6,7 @@ A docker image that lives in a Kube cluster which takes requests and spins up we
 
 ### Install
 
-#### Get a Cert
-
-This will be removed once the main pod container makes these requests for you. :)
-
-Follow the instructions in `tools/createCert.sh`.
-
-#### Create Secrets
-
-First, the termy service needs a few secrets to deploy along with the main pod.  They go in a directory called `.hidden` in the deploy script, but they can be put anywhere.
-
-1. Hostname (`.hidden/hostname`)
-1. Super User Password (`.hidden/supw`).
-1. Kubernetes Configuration (`.hidden/kubeconfig`).
-1. TLS (`tls.crt` and `tls.key`).
-
-#### Create
-
-Edit the script for secret location, if needed.  Then, run the deploy script.
-
-```bash
-./tools/deploy.sh
-```
-
-#### Describe Ingresses
-
-```bash
-kubectl describe ingress/termy-in --namespace=termy
-kubectl describe ingress/termy-terminal-in --namespace=termy-terminals
-```
-
-Use the IPs for setting up the domain A records.
-
-#### Create Domain
-
-Use your favorite registrar and add A records for your `@` and `*` ingresses.
-
-
-
-The Kube cluster must define a fe
-
-### Test
-
-Navigate to endpoint.
+Use the helm chart [here](https://github.com/twitchax/charts/tree/master/charts/termy).
 
 ## License
 

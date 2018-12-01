@@ -291,5 +291,29 @@ namespace Termy.Services
             var obj = deserializer.Deserialize<T>(content);
             return obj;
         }
+
+        public static async Task<IEnumerable<V1Deployment>> GetTerminalDeploymentsAsync(this IKubernetesService service, string ns = null)
+        {
+            return (await service.GetDeploymentsAsync(ns)).Where(d => d.Metadata.Labels.Any(kvp => kvp.Key == Settings.KubeTerminalRunLabel));
+        }
+
+        public static async Task<IEnumerable<V1Service>> GetTerminalServicesAsync(this IKubernetesService service, string ns = null)
+        {
+            return (await service.GetServicesAsync(ns)).Where(d => d.Metadata.Labels.Any(kvp => kvp.Key == Settings.KubeTerminalRunLabel));
+        }
+
+        public static async Task<IEnumerable<V1Status>> DeleteAllTerminalServicesAsync(this IKubernetesService service, string ns)
+        {
+            var tasks = (await service.GetTerminalServicesAsync(ns)).Select(s => service.DeleteServiceAsync(s.Metadata.Name, ns));
+
+            return (await Task.WhenAll(tasks)).ToList();
+        }
+
+        public static async Task<IEnumerable<V1Status>> DeleteAllTerminalDeploymentsAsync(this IKubernetesService service, string ns)
+        {
+            var tasks = (await service.GetTerminalDeploymentsAsync(ns)).Select(s => service.DeleteDeploymentAsync(s.Metadata.Name, ns));
+
+            return (await Task.WhenAll(tasks)).ToList();
+        }
     }
 }

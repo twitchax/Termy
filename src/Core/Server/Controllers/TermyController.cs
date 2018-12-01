@@ -15,10 +15,9 @@ using Newtonsoft.Json.Linq;
 using Termy.Models;
 using Termy.Services;
 
-// TODO: Use only one namespace and one ingress...and maybe change endpoint so you can just use `*.termy.in`.
-// TODO: Remove TLS dependency...that is something that kube admins should do.
+// Generalize namespace in helm chart.
 // TODO: Change k8s authorization to an RBACed account that only has access to its own namespaces.
-// TODO: Create a helm chart for this.
+
 // TODO: Allow multiple replicas.
 // TODO: Explore DI for logging?
 // TODO: Explore DI for Settings?
@@ -35,7 +34,7 @@ namespace Termy.Controllers
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("3.5.0");
+            return Ok("3.6.0");
         }
 
         [HttpGet("/api/terminal")]
@@ -44,7 +43,7 @@ namespace Termy.Controllers
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetTerminals)} ...");
 
-            var terminals = (await Kube.GetDeploymentsAsync(Settings.KubeTerminalNamespace)).Select(t => {
+            var terminals = (await Kube.GetTerminalDeploymentsAsync(Settings.KubeNamespace)).Select(t => {
                 var name = t.Metadata.Name;
                 var cnames = Helpers.ResolveCnames(t.Metadata.Annotations["cnames"]);
 
@@ -65,7 +64,7 @@ namespace Termy.Controllers
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(GetTerminal)} ...");
 
-            var terminal = await Kube.GetDeploymentsAsync(Settings.KubeTerminalNamespace).WithName(name);
+            var terminal = await Kube.GetTerminalDeploymentsAsync(Settings.KubeNamespace).WithName(name);
 
             // Bail out if not found.
             if(terminal == null)
@@ -93,15 +92,15 @@ namespace Termy.Controllers
             var id = Helpers.GetId();
             Helpers.Log(id, $"Starting {nameof(DeleteTerminals)} ...");
 
-            // Remove all ingress entries (except for the "dummy" one).
-            await Kube.TransformIngressAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace, i => {
-                i.Spec.Rules = i.Spec.Rules.Where(r => r.Host == "none.com").ToList();
+            // Remove all ingress entries (except for the "termy" one).
+            await Kube.TransformIngressAsync(Settings.KubeIngressName, Settings.KubeNamespace, i => {
+                i.Spec.Rules = i.Spec.Rules.Where(r => r.Host == Settings.HostName || r.Host == $"dashboard.{Settings.HostName}").ToList();
             });
 
             // Delete all deployments and services in namespace.
             await Task.WhenAll(
-                Kube.DeleteAllServicesAsync(Settings.KubeTerminalNamespace), 
-                Kube.DeleteAllDeploymentsAsync(Settings.KubeTerminalNamespace)
+                Kube.DeleteAllTerminalServicesAsync(Settings.KubeNamespace), 
+                Kube.DeleteAllTerminalDeploymentsAsync(Settings.KubeNamespace)
             );
 
             Helpers.Log(id, $"Done.");
@@ -120,7 +119,7 @@ namespace Termy.Controllers
             // TODO: This needs to be smart if the deployment does not exist.  Right now, it will just fail ungracefully.
 
             // Get cnames for deployment.
-            var cnamesString = (await Kube.GetDeploymentsAsync(Settings.KubeTerminalNamespace).WithName(name))?.Metadata.Annotations["cnames"];
+            var cnamesString = (await Kube.GetTerminalDeploymentsAsync(Settings.KubeNamespace).WithName(name))?.Metadata.Annotations["cnames"];
 
             // Fail fast if there is no deployment, since there will be no other resources to clean up if there is no deployment.
             if(cnamesString == null)
@@ -130,20 +129,21 @@ namespace Termy.Controllers
             }
 
             // Remove all hosts and CNAMEs from ingress.
+            // TODO: Is ths
             var cnames = Helpers.ResolveCnames(cnamesString).ToList();
-            await Kube.TransformIngressAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace, i => {
+            await Kube.TransformIngressAsync(Settings.KubeIngressName, Settings.KubeNamespace, i => {
                 i.Spec.Rules = i.Spec.Rules.Where(r => 
-                    r.Host != name && 
-                    r.Host != $"{Settings.TerminalPtyDomainNamePrefix}{name}" && 
-                    r.Host != $"{Settings.TerminalSshDomainNamePrefix}{name}" && 
+                    r.Host !=$"{name}.{Settings.HostName}" && 
+                    r.Host != $"{Settings.TerminalPtyDomainNamePrefix}{name}.{Settings.HostName}" && 
+                    r.Host != $"{Settings.TerminalSshDomainNamePrefix}{name}.{Settings.HostName}" && 
                     !cnames.Select(c => c.Name).Contains(r.Host)
                 ).ToList();
             });
 
             // Delete deployment and service.
             await Task.WhenAll(
-                Kube.DeleteServiceAsync(name, Settings.KubeTerminalNamespace), 
-                Kube.DeleteDeploymentAsync(name, Settings.KubeTerminalNamespace)
+                Kube.DeleteServiceAsync(name, Settings.KubeNamespace), 
+                Kube.DeleteDeploymentAsync(name, Settings.KubeNamespace)
             );
             
             Helpers.Log(id, $"Done.");
@@ -176,11 +176,11 @@ namespace Termy.Controllers
 
             var terminalServiceYamlText = Settings.TerminalServiceYamlTemplate
                 .Replace("{{name}}", request.Name)
-                .Replace("{{namespace}}", Settings.KubeTerminalNamespace);
+                .Replace("{{namespace}}", Settings.KubeNamespace);
 
             var terminalYamlText = Settings.TerminalYamlTemplate
                 .Replace("{{name}}", request.Name)
-                .Replace("{{namespace}}", Settings.KubeTerminalNamespace)
+                .Replace("{{namespace}}", Settings.KubeNamespace)
                 .Replace("{{image}}", request.Image)
                 .Replace("{{ptyPassword}}", request.Password)
                 .Replace("{{ptyShell}}", request.Shell)
@@ -205,13 +205,13 @@ namespace Termy.Controllers
             {
                 // The k8s deployments acts as the source of truth, so create it first.
                 // If it fails, then there will be nothing else to clean up, anyway.
-                await Kube.CreateDeploymentAsync(Settings.KubeTerminalNamespace, deployment);
-                await Kube.CreateServiceAsync(Settings.KubeTerminalNamespace, service);
+                await Kube.CreateDeploymentAsync(Settings.KubeNamespace, deployment);
+                await Kube.CreateServiceAsync(Settings.KubeNamespace, service);
 
                 // Add to the ingress configuration.
                 await Kube.AddIngressRuleAsync(
-                    Settings.KubeTerminalIngressName,
-                    Settings.KubeTerminalNamespace,
+                    Settings.KubeIngressName,
+                    Settings.KubeNamespace,
                     request.Name,
                     cnames.Select(c => (c.Name, c.Port))
                 );
@@ -277,19 +277,19 @@ namespace Termy.Controllers
                 errors.Add($"The entrypoint value is invalid; must be: {string.Join(",", CreateTerminalRequest.AllowedEntrypoints)}.");
             if(!Helpers.IsEnvironmentVariablesValid(request.EnvironmentVariables))
                 errors.Add("Provided environment variables could not be parsed.");
-            var existing = await Kube.GetServicesAsync(Settings.KubeTerminalNamespace).WithName(request.Name);
+            var existing = await Kube.GetServicesAsync(Settings.KubeNamespace).WithName(request.Name);
             if(existing != null)
                 errors.Add("A terminal with this name already exists.");
 
             // Clean up CNAMEs and add default ones.
             var cnames = Helpers.ResolveCnames(request.Cnames).ToList();
             // TODO: thhis would be cool, but it would require some tunnelling work.
-            //cnames.Insert(0, new CnameMap { Name = $"{Settings.TerminalSshDomainNamePrefix}{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalSshPort });
+            cnames.Insert(0, new CnameMap { Name = $"{Settings.TerminalSshDomainNamePrefix}{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalSshPort });
             cnames.Insert(0, new CnameMap { Name = $"{Settings.TerminalPtyDomainNamePrefix}{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalPtyPort });
             cnames.Insert(0, new CnameMap { Name = $"{request.Name}.{Settings.HostName}", Port = Settings.DefaultTerminalHttpPort });
 
             // Ensure no host names clash.
-            var allHosts = cnames.Select(c => c.Name).ToList().AddRangeWithDaisy(await Kube.GetIngressHostsAsync(Settings.KubeTerminalIngressName, Settings.KubeTerminalNamespace));
+            var allHosts = cnames.Select(c => c.Name).ToList().AddRangeWithDaisy(await Kube.GetIngressHostsAsync(Settings.KubeIngressName, Settings.KubeNamespace));
             if(allHosts.AreAnyDuplicates())
                 errors.Add("Provided CNAMEs have duplicates or clash with existing host names.");
 

@@ -8,14 +8,14 @@ namespace Termy
     {
         #region User Settings
 
-        public static readonly string HostName = File.ReadAllText(ResolvePath(Environment.GetEnvironmentVariable("TERMY_HOSTNAME_PATH"), "/etc/secrets/hostname"));
+        public static readonly string HostName = ResolveValue("TERMY_HOSTNAME", "/etc/secrets/hostname");
 
         #endregion
 
         #region User Secrets
 
         public static readonly string KubeConfigPath = ResolvePath(Environment.GetEnvironmentVariable("TERMY_KUBECONFIG_PATH"), "/etc/secrets/kubeconfig");
-        public static readonly string SuperUserPassword = File.ReadAllText(ResolvePath(Environment.GetEnvironmentVariable("TERMY_SUPW_PATH"), "/etc/secrets/supw"));
+        public static readonly string SuperUserPassword = ResolveValue("TERMY_SUPW", "/etc/secrets/supw");
 
         #endregion
 
@@ -40,19 +40,15 @@ namespace Termy
 
         #region Kubernetes Constants
 
-        public static readonly string KubeNamespace = "termy";
-        public static readonly string KubeTerminalNamespace = "termy-terminals";
+        public static readonly string KubeNamespace = ResolveValue("TERMY_NAMESPACE");
         public static readonly string KubeTermyServiceName = "termy-svc";
-        public static readonly string KubeTermyIngressName = "termy-in";
-        public static readonly string KubeTerminalIngressName = "termy-terminal-in";
+        public static readonly string KubeIngressName = "termy-in";
+        public static readonly string KubeTerminalRunLabel = "terminal-run";
 
         #endregion
 
         #region YAML Templates
 
-        public static readonly string TermyServiceYamlTemplate = File.ReadAllText("assets/termy-service.yml");
-        public static readonly string TermyIngressYamlTemplate = File.ReadAllText("assets/termy-ingress.yml");
-        public static readonly string TerminalIngressYamlTemplate = File.ReadAllText("assets/terminal-ingress.yml");
         public static readonly string TerminalServiceYamlTemplate = File.ReadAllText("assets/terminal-service.yml");
         public static readonly string TerminalYamlTemplate = File.ReadAllText("assets/terminal.yml");
 
@@ -74,6 +70,11 @@ namespace Termy
         internal static string ResolvePath(params string[] paths)
         {
             return paths.FirstOrDefault(f => File.Exists(f)) ?? throw new Exception($"Could not resolve setting for paths ({string.Join(", ", paths)}).");
+        }
+
+        internal static string ResolveValue(string environmentVariable, params string[] paths)
+        {
+            return Environment.GetEnvironmentVariable(environmentVariable) ?? File.ReadAllText(ResolvePath(paths));
         }
 
         #endregion
