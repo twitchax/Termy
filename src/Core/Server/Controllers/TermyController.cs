@@ -15,26 +15,24 @@ using Newtonsoft.Json.Linq;
 using Termy.Models;
 using Termy.Services;
 
-// Generalize namespace in helm chart.
-// TODO: Change k8s authorization to an RBACed account that only has access to its own namespaces.
+// Properly do helm chart secrets.
+// TODO: Allow assigning min resources and limits.
 
-// TODO: Allow multiple replicas.
 // TODO: Explore DI for logging?
 // TODO: Explore DI for Settings?
-// TODO: Allow resource requests?
 
 namespace Termy.Controllers
 {
     public class TermyController : BaseController
     {
-        public TermyController(IKubernetesService kube, INodeStats nodeStats) : base(kube, nodeStats)
+        public TermyController(IKubernetesService kube) : base(kube)
         {
         }
 
         [HttpGet("/api/version")]
         public IActionResult GetVersion()
         {
-            return Ok("3.6.0");
+            return Ok("4.0.0");
         }
 
         [HttpGet("/api/terminal")]
@@ -231,18 +229,6 @@ namespace Termy.Controllers
             // Finalize.
             Helpers.Log(id, $"Done.");
             return Created($"{Settings.HostName}/api/terminal/{request.Name}", response);
-        }
-
-        [HttpGet("/api/node/stats")]
-        public IActionResult GetNodeStats()
-        {
-            var id = Helpers.GetId();
-            Helpers.Log(id, $"Starting {nameof(GetNodeStats)} ...");
-
-            var nodeStats = this.NodeStats;
-
-            Helpers.Log(id, $"Done.");
-            return Ok(nodeStats);
         }
 
         [HttpPost("/api/kill")]

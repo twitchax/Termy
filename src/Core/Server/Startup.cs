@@ -11,6 +11,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Swashbuckle.AspNetCore.Swagger;
 using Termy.Models;
 using Termy.Services;
 
@@ -34,9 +35,14 @@ namespace Termy
                     options.SerializerSettings.Formatting = Formatting.Indented;
                 });
 
-            services.AddTransient<IKubernetesService>((sp) => new KubernetesService(Settings.KubeConfigPath));
-            services.AddSingleton<INodeStats>(sp => new NodeStats());
-            services.AddHostedService<WorkerHostedService>();
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new Info { Title = "Termy API", Version = "v1" });
+            });
+
+            services.AddTransient<IKubernetesService, KubernetesService>();
+            //services.AddSingleton<INodeStats, NodeStats>();
+            //services.AddHostedService<WorkerHostedService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -60,6 +66,12 @@ namespace Termy
             });
 
             app.UseMvc();
+
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+            });
 
             // Custom startup stuff.
             

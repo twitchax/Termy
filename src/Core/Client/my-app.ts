@@ -74,7 +74,6 @@ export class MyApp extends PolymerElement {
             return;
 
         await this.updateTerminalList();
-        await this.updateNodeStats();
 
         this.showLoading(false);
     }
@@ -82,28 +81,6 @@ export class MyApp extends PolymerElement {
     private updateTerminalList() {
         return request<Bll.Terminal[]>({ url: '/api/terminal' }).then(data => {
             this.terminals = data;
-        }).catch(this.handleError.bind(this));
-    }
-
-    private updateNodeStats() {
-        return request<{ [name: string]: Bll.NodeStat[]; }>({ url: '/api/node/stats' }).then(nodes => {
-            let cpuPercentColumns: (string | number)[][] = [];
-            let memoryPercentColumns: (string | number)[][] = [];
-            let xs = nodes[Object.keys(nodes)[0]].map(n => n.time);
-
-            //columns.push(['x', xs].flat());
-
-            for(var key in nodes) {
-                cpuPercentColumns.push([key, nodes[key].map(s => s.cpuPercent)].flat());
-                memoryPercentColumns.push([key, nodes[key].map(s => s.memoryPercent)].flat());
-            }
-
-            this.nodeCpuPercentData = {
-                columns: cpuPercentColumns
-            };
-            this.nodeMemoryPercentData = {
-                columns: memoryPercentColumns
-            };
         }).catch(this.handleError.bind(this));
     }
 
@@ -289,16 +266,6 @@ export class MyApp extends PolymerElement {
                         <br />
 
                         <paper-button on-tap="deleteTerminals" raised>Delete All</paper-button>
-                    </paper-card>
-
-                    <paper-card>
-                        <h1>Node Statistics (2 hours)</h1>
-
-                        <h3>CPU Percentage</h3>
-                        <granite-c3 data="[[nodeCpuPercentData]]" point='{ "show": false }' axis='{ "y": { "min": 0, "max": 100 } }'></granite-c3>
-
-                        <h3>Memory Percentage</h3>
-                        <granite-c3 data="[[nodeMemoryPercentData]]" point='{ "show": false }' axis='{ "y": { "min": 0, "max": 100 } }'></granite-c3>
                     </paper-card>
                 </div>
             </div>

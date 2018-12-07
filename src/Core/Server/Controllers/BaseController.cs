@@ -17,14 +17,12 @@ namespace Termy.Controllers
     public class BaseController : Controller
     {
         protected IKubernetesService Kube { get; private set;}
-        protected INodeStats NodeStats { get; private set; }
 
         public bool IsSuperUser => this.Request.Headers.TryGetValue("X-Super-User-Password", out var values) && values.Contains(Settings.SuperUserPassword);
 
-        public BaseController(IKubernetesService kube, INodeStats nodeStats) 
+        public BaseController(IKubernetesService kube) 
         {
             Kube = kube;
-            NodeStats = nodeStats;
         }
 
         public BadRequestObjectResult BadRequest(string id, string error)

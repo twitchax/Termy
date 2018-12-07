@@ -8,9 +8,6 @@ namespace Termy.Models
 {
     #region Helpers
 
-    public interface INodeStats : IDictionary<string, FixedSizedQueue<NodeStat>> {}
-    public class NodeStats : Dictionary<string, FixedSizedQueue<NodeStat>>, INodeStats {}
-
     public class FixedSizedQueue<T> : Queue<T>
     {
         public int Limit { get; set; }

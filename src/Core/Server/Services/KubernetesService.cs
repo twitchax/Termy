@@ -40,14 +40,12 @@ namespace Termy.Services
 
     public class KubernetesService : IKubernetesService
     {
-        private string _configPath;
         private KubernetesClientConfiguration _kubeConfig;
         private Kubernetes _kubeClient;
 
-        public KubernetesService(string configPath)
+        public KubernetesService()
         {
-            _configPath = configPath;
-            _kubeConfig = KubernetesClientConfiguration.BuildConfigFromConfigFile(_configPath);
+            _kubeConfig = KubernetesClientConfiguration.InClusterConfig();
             _kubeClient = new Kubernetes(_kubeConfig);
         }
 
@@ -63,20 +61,9 @@ namespace Termy.Services
             return _kubeClient.CreateNamespacedServiceAsync(body, ns);
         }
 
-        public async Task ApplyAsync(string yaml)
+        public Task ApplyAsync(string yaml)
         {
-            var fileName = $"deployment_{Guid.NewGuid()}.yml";
-
-            try
-            {
-                await File.WriteAllTextAsync(fileName, yaml);
-                await this.RunKubeCommand("STARTUP", $"apply -f {fileName}");
-            }
-            finally
-            {
-                File.Delete(fileName);
-            }
-            
+            throw new NotImplementedException();
         }
 
         #endregion
@@ -127,18 +114,8 @@ namespace Termy.Services
 
         public async Task<IEnumerable<NodeStat>> GetNodeStatsAsync()
         {
-            var (nodes, _) = await this.RunKubeCommand("NODE ACTIVITY WORKER", "top node");
-
-            var nodeStats = Helpers.TextToJArray(nodes).Select(n => new NodeStat {
-                Name = n.Value<string>("name"),
-                CpuCores = int.Parse(n.Value<string>("cpucores").Replace("m", "")),
-                CpuPercent = int.Parse(n.Value<string>("cpu").Replace("%", "")),
-                MemoryBytes = int.Parse(n.Value<string>("memorybytes").Replace("mi", "")),
-                MemoryPercent = int.Parse(n.Value<string>("memory").Replace("%", "")), 
-                Time = DateTime.Now
-            }).ToList();
-
-            return nodeStats;
+            // TODO: Add this if node metrics are supported.
+            throw new NotImplementedException();
         }
 
         #endregion
@@ -207,11 +184,6 @@ namespace Termy.Services
         #endregion
 
         #region Helpers
-
-        private Task<(string Standard, string Error)> RunKubeCommand(string id, string args)
-        {
-            return Helpers.RunCommand("KUBERNETES", "kubectl", $"{args} --kubeconfig=\"{_configPath}\"");
-        }
 
         #endregion
     }

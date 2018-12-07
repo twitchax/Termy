@@ -14,7 +14,6 @@ namespace Termy
 
         #region User Secrets
 
-        public static readonly string KubeConfigPath = ResolvePath(Environment.GetEnvironmentVariable("TERMY_KUBECONFIG_PATH"), "/etc/secrets/kubeconfig");
         public static readonly string SuperUserPassword = ResolveValue("TERMY_SUPW", "/etc/secrets/supw");
 
         #endregion
