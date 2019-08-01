@@ -9,8 +9,6 @@ using Microsoft.Rest;
 using Termy.Models;
 using Termy.Services;
 
-// TODO: Buil with GitHub Actions.
-// TODO: Deploy to docker hub.
 // TODO: Properly do helm chart secrets.
 // TODO: Attempt to provision a certificate using cert-manager and a provided issuer name.
 // TODO: Allow assigning min resources and limits.
