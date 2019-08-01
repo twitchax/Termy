@@ -11,7 +11,10 @@ action "build" {
 action "login" {
   uses = "actions/docker/login@86ff551d26008267bb89ac11198ba7f1d807b699"
   needs = ["build"]
-  secrets = ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
+  secrets = [
+    "DOCKER_USERNAME",
+    "DOCKER_PASSWORD",
+  ]
 }
 
 action "GitHub Action for Docker" {
