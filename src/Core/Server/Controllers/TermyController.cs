@@ -1,21 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using k8s;
 using k8s.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Rest;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Termy.Models;
 using Termy.Services;
 
-// Properly do helm chart secrets.
+// TODO: Buil with GitHub Actions.
+// TODO: Deploy to docker hub.
+// TODO: Properly do helm chart secrets.
+// TODO: Attempt to provision a certificate using cert-manager and a provided issuer name.
 // TODO: Allow assigning min resources and limits.
 
 // TODO: Explore DI for logging?

@@ -112,7 +112,7 @@ namespace Termy.Services
             return (await _kubeClient.ListNodeAsync()).Items;
         }
 
-        public async Task<IEnumerable<NodeStat>> GetNodeStatsAsync()
+        public Task<IEnumerable<NodeStat>> GetNodeStatsAsync()
         {
             // TODO: Add this if node metrics are supported.
             throw new NotImplementedException();
